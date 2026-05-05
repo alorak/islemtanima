@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Matematik Tanıma – Transformers.js</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #07090f; color: #e2e8f0;
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    /* Header */
+    header {
+      display: flex; align-items: center;
+      padding: 12px 24px; border-bottom: 1px solid #1e2d3d;
+      background: #0d1117; flex-shrink: 0; gap: 12px;
+    }
+    header h1 { font-size: 1.15rem; font-weight: 700; color: #38bdf8; }
+    .header-spacer { flex: 1; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    #models-btn, #settings-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: #0f2030; border: 1px solid #1e3a5f;
+      color: #7dd3fc; border-radius: 8px;
+      padding: 8px 16px; font-size: .82rem; font-weight: 600;
+      cursor: pointer; transition: background .2s, border-color .2s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    #models-btn:hover, #settings-btn:hover { background: #162d45; border-color: #38bdf8; }
+    /* Settings modal */
+    .settings-section { padding: 18px 20px; border-bottom: 1px solid #0f1820; }
+    .settings-section:last-child { border-bottom: none; }
+    .settings-label {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .09em; color: #475569; margin-bottom: 6px; display: block;
+    }
+    .settings-desc { font-size: .72rem; color: #334155; margin-bottom: 10px; }
+    .settings-textarea {
+      width: 100%; background: #0a0d14; border: 1px solid #1e2d3d;
+      color: #cbd5e1; border-radius: 8px; padding: 10px 12px;
+      font-size: .875rem; font-family: 'Segoe UI', sans-serif;
+      resize: vertical; min-height: 90px; outline: none;
+      transition: border-color .2s; line-height: 1.5;
+    }
+    .settings-textarea:focus { border-color: #38bdf8; }
+    .settings-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .settings-reset-btn {
+      padding: 5px 12px; background: #1e2d3d; color: #94a3b8;
+      border: 1px solid #263b4f; border-radius: 6px; font-size: .78rem;
+      cursor: pointer; transition: background .15s;
+    }
+    .settings-reset-btn:hover { background: #263b4f; color: #e2e8f0; }
+    .settings-saved { font-size: .72rem; color: #4ade80; opacity: 0; transition: opacity .3s; }
+    .prompt-model-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .prompt-tag {
+      font-size: .66rem; font-weight: 700; padding: 2px 8px; border-radius: 100px;
+      background: #1e3a5f; color: #7dd3fc; border: 1px solid #0369a1;
+    }
+    .models-badge {
+      background: #1e2d3d; color: #94a3b8; font-size: .7rem; font-weight: 700;
+      padding: 2px 7px; border-radius: 100px; min-width: 28px; text-align: center;
+    }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.65);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal {
+      background: #0d1117; border: 1px solid #1e2d3d; border-radius: 14px;
+      width: 900px; max-width: 96vw; max-height: 82vh;
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid #1e2d3d; flex-shrink: 0;
+    }
+    .modal-header h2 { font-size: 1rem; font-weight: 700; color: #e2e8f0; }
+    .modal-close {
+      background: none; border: none; color: #475569; font-size: 1.1rem;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: background .15s, color .15s;
+    }
+    .modal-close:hover { color: #e2e8f0; background: #1e2d3d; }
+    .modal-hint { padding: 10px 20px 4px; font-size: .73rem; color: #334155; flex-shrink: 0; }
+    .modal-body { overflow-y: auto; padding: 4px 0 12px; }
+    .modal-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 20px; gap: 14px; border-bottom: 1px solid #0f1820;
+    }
+    .modal-row:last-child { border-bottom: none; }
+    .modal-row-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+    .modal-row-name { font-size: .88rem; font-weight: 600; color: #e2e8f0; }
+    .modal-row-meta { font-size: .71rem; color: #475569; }
+    .modal-row-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: nowrap; }
+    .modal-status {
+      font-size: .7rem; font-weight: 700; padding: 3px 9px;
+      border-radius: 100px; white-space: nowrap;
+      min-width: 120px; text-align: center;
+    }
+    .modal-status.loaded   { background: #14532d; color: #4ade80; border: 1px solid #166534; }
+    .modal-status.unloaded { background: #1e2d3d; color: #475569; }
+    .modal-status.loading  { background: #451a03; color: #fbbf24; border: 1px solid #78350f; animation: blink 1s infinite; }
+    .modal-status.error    { background: #1c1010; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .modal-status.cached   { background: #1e3a5f; color: #7dd3fc; border: 1px solid #0369a1; }
+    .modal-load-btn {
+      padding: 6px 14px; background: #0f2030; border: 1px solid #1e3a5f;
+      color: #7dd3fc; border-radius: 7px; font-size: .8rem; font-weight: 600;
+      cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap;
+      min-width: 68px; text-align: center;
+    }
+    .modal-load-btn:hover:not(:disabled) { background: #162d45; border-color: #38bdf8; }
+    .modal-load-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .gpu-badge {
+      font-size: .68rem; font-weight: 700; padding: 3px 9px;
+      border-radius: 100px; letter-spacing: .05em; flex-shrink: 0;
+    }
+    .gpu-badge.cpu { background: #1e2d3d; color: #475569; }
+    .gpu-badge.gpu { background: #14532d; color: #4ade80; border: 1px solid #166534; }
+    /* Per-model autoload toggle */
+    .modal-row-autoload {
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+    }
+    .modal-row-autoload-label { font-size: .69rem; color: #475569; white-space: nowrap; }
+    .toggle-switch-sm { position: relative; width: 32px; height: 18px; flex-shrink: 0; }
+    .toggle-switch-sm input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-switch-sm .toggle-slider-sm {
+      position: absolute; inset: 0; background: #1e2d3d;
+      border-radius: 100px; cursor: pointer; transition: background .2s;
+    }
+    .toggle-switch-sm .toggle-slider-sm::before {
+      content: ''; position: absolute; width: 12px; height: 12px;
+      left: 3px; bottom: 3px; background: #475569;
+      border-radius: 50%; transition: transform .2s, background .2s;
+    }
+    .toggle-switch-sm input:checked + .toggle-slider-sm { background: #0ea5e9; }
+    .toggle-switch-sm input:checked + .toggle-slider-sm::before { transform: translateX(14px); background: #fff; }
+    /* Split */
+    .split { display: grid; grid-template-columns: 360px 1fr; flex: 1; overflow: hidden; min-height: 0; }
+    .panel { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    .left-panel  { border-right: 1px solid #1e2d3d; background: #0a0d14; }
+    .right-panel { background: #07090f; }
+    .section-title {
+      font-size: .67rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .1em; color: #334155; border-bottom: 1px solid #151f2d; padding-bottom: 6px;
+    }
+    /* Model row */
+    .model-row { display: flex; flex-direction: column; gap: 6px; }
+    .model-row label { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #475569; }
+    .model-row select {
+      background: #131b25; border: 1px solid #1e2d3d; color: #cbd5e1;
+      border-radius: 8px; padding: 9px 10px; font-size: .875rem;
+      cursor: pointer; outline: none; width: 100%;
+    }
+    .model-row select:focus { border-color: #38bdf8; }
+    /* Upload */
+    .upload-area {
+      border: 2px dashed #1e2d3d; border-radius: 10px;
+      padding: 24px 16px; text-align: center; cursor: pointer;
+      transition: border-color .2s, background .2s; position: relative;
+    }
+    .upload-area:hover, .upload-area.drag-over { border-color: #0ea5e9; background: #0d1e2e; }
+    .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 1.9rem; margin-bottom: 7px; }
+    .upload-area p { color: #94a3b8; font-size: .82rem; }
+    .upload-area span { color: #38bdf8; font-weight: 600; }
+    /* Preview */
+    .preview-box { display: none; border-radius: 10px; overflow: hidden; border: 1px solid #1e2d3d; }
+    .preview-box img { width: 100%; display: block; object-fit: contain; background: #07090f; }
+    .preview-label { padding: 6px 10px; background: #0d1117; font-size: .67rem; color: #475569; text-transform: uppercase; letter-spacing: .07em; }
+    #preview-img   { max-height: 260px; }
+    #processed-img { max-height: 340px; background: #fff !important; }
+    /* Analyze btn */
+    #analyze-btn {
+      display: none; width: 100%; padding: 12px;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      color: #fff; font-size: .95rem; font-weight: 600;
+      border: none; border-radius: 8px; cursor: pointer; transition: opacity .2s;
+    }
+    #analyze-btn:hover { opacity: .88; }
+    #analyze-btn:disabled { opacity: .45; cursor: not-allowed; }
+    /* Progress */
+    #progress-wrap { display: none; flex-direction: column; gap: 8px; }
+    #progress-label { font-size: .8rem; color: #94a3b8; }
+    .bar-outer { background: #1e2d3d; border-radius: 100px; height: 5px; overflow: hidden; }
+    .bar-inner { height: 100%; background: linear-gradient(90deg,#0ea5e9,#38bdf8); border-radius: 100px; width: 0%; transition: width .25s; }
+    /* Results */
+    #result-container { display: none; flex-direction: column; gap: 12px; }
+    .result-block { background: #0d1117; border: 1px solid #1e2d3d; border-radius: 10px; padding: 14px 16px; }
+    .result-block label { display: block; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #475569; margin-bottom: 8px; }
+    #raw-text     { font-family: 'Courier New', monospace; font-size: .95rem; color: #e2e8f0; word-break: break-all; }
+    #latex-source { font-family: 'Courier New', monospace; font-size: .85rem; color: #86efac; word-break: break-all; }
+    #latex-rendered { font-size: 1.5rem; color: #e2e8f0; text-align: center; padding: 8px 0; overflow-x: auto; }
+    .copy-btn { margin-top: 8px; padding: 5px 12px; background: #1e2d3d; color: #38bdf8; border: 1px solid #263b4f; border-radius: 6px; font-size: .78rem; cursor: pointer; transition: background .15s; }
+    .copy-btn:hover { background: #263b4f; }
+    /* Full-height layout */
+    .right-panel { overflow: hidden !important; }
+    #result-container { flex: 1; min-height: 0; overflow: hidden; }
+    /* Results grid + Chat */
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; flex: 1; min-height: 0; height: 100%; }
+    .ocr-col { display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; overflow-y: auto; min-height: 0; }
+    .ocr-col .result-block { width: 100%; flex-shrink: 0; }
+    #chat-col { display: flex; flex-direction: column; min-height: 0; }
+    .chat-block { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .chat-label { padding: 10px 14px 8px; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: #475569; border-bottom: 1px solid #1e2d3d; flex-shrink: 0; }
+    .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 12px 14px; min-height: 60px; }
+    .chat-msg { display: flex; flex-direction: column; gap: 3px; }
+    .chat-msg-role { font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+    .chat-msg-role.user { color: #38bdf8; }
+    .chat-msg-role.asst { color: #475569; }
+    .chat-msg-content { font-size: .875rem; color: #e2e8f0; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+    .chat-msg-content.thinking { color: #475569; font-style: italic; }
+    .chat-divider { border: none; border-top: 1px solid #0f1820; margin: 0; }
+    .chat-input-row { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #1e2d3d; flex-shrink: 0; }
+    .chat-input { flex: 1; background: #0a0d14; border: 1px solid #1e2d3d; color: #cbd5e1; border-radius: 6px; padding: 7px 10px; font-size: .85rem; font-family: 'Segoe UI', sans-serif; outline: none; transition: border-color .2s; }
+    .chat-input:focus { border-color: #38bdf8; }
+    .chat-input:disabled { opacity: .45; }
+    .chat-send-btn { background: #0ea5e9; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-weight: 700; font-size: .92rem; flex-shrink: 0; transition: background .15s; }
+    .chat-send-btn:hover:not(:disabled) { background: #0284c7; }
+    .chat-send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    /* Markdown in chat */
+    .chat-md { font-size: .875rem; color: #e2e8f0; line-height: 1.6; }
+    .chat-md p { margin: 0 0 8px; }
+    .chat-md p:last-child { margin-bottom: 0; }
+    .chat-md h1,.chat-md h2,.chat-md h3,.chat-md h4 { color: #7dd3fc; font-size: .88rem; font-weight: 700; margin: 10px 0 4px; }
+    .chat-md ul,.chat-md ol { padding-left: 18px; margin: 4px 0 8px; }
+    .chat-md li { margin: 3px 0; }
+    .chat-md strong { color: #f1f5f9; font-weight: 700; }
+    .chat-md em { color: #94a3b8; font-style: italic; }
+    .chat-md hr { border: none; border-top: 1px solid #1e2d3d; margin: 10px 0; }
+    .chat-md code { background: #131b25; border-radius: 4px; padding: 1px 5px; font-family: 'Courier New', monospace; font-size: .82rem; color: #86efac; }
+    .chat-md pre { background: #131b25; border-radius: 6px; padding: 8px 12px; overflow-x: auto; margin: 6px 0; }
+    .chat-md pre code { padding: 0; background: none; }
+    /* Crop */
+    #crop-btn {
+      display: none; width: 100%; padding: 8px;
+      background: #131b25; color: #7dd3fc;
+      border: 1px solid #1e3a5f; border-radius: 8px;
+      font-size: .85rem; font-weight: 600;
+      cursor: pointer; transition: background .2s, border-color .2s;
+    }
+    #crop-btn:hover { background: #162d45; border-color: #38bdf8; }
+    #cropped-container { display: none; position: relative; border-radius: 10px; border: 1px solid #0ea5e9; overflow: hidden; }
+    #cropped-img { width: 100%; display: block; object-fit: contain; background: #07090f; max-height: 220px; }
+    #crop-clear-btn {
+      position: absolute; top: 6px; right: 6px;
+      background: rgba(7,9,15,.82); border: 1px solid #334155;
+      color: #94a3b8; border-radius: 50%; width: 22px; height: 22px;
+      font-size: .75rem; cursor: pointer; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    #crop-clear-btn:hover { background: #7f1d1d; color: #fca5a5; border-color: #ef4444; }
+    .crop-preview-label { padding: 5px 10px; background: #0d1117; font-size: .67rem; color: #38bdf8; text-transform: uppercase; letter-spacing: .07em; border-top: 1px solid #0ea5e9; }
+    .crop-modal-inner {
+      background: #0d1117; border: 1px solid #1e2d3d; border-radius: 14px;
+      width: 90vw; max-width: 940px; max-height: 92vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .crop-modal-header { display: flex; align-items: center; gap: 10px; padding: 13px 18px; border-bottom: 1px solid #1e2d3d; flex-shrink: 0; }
+    .crop-modal-title { flex: 1; font-size: .95rem; font-weight: 700; color: #e2e8f0; }
+    .crop-modal-hint { padding: 5px 18px 3px; font-size: .72rem; color: #475569; flex-shrink: 0; }
+    .crop-canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #07090f; overflow: hidden; min-height: 0; cursor: crosshair; padding: 10px; }
+    #crop-canvas { display: block; max-width: 100%; max-height: calc(90vh - 120px); user-select: none; touch-action: none; }
+    .crop-ok-btn { padding: 7px 20px; background: #0ea5e9; color: #fff; border: none; border-radius: 7px; font-size: .85rem; font-weight: 700; cursor: pointer; transition: background .15s; }
+    .crop-ok-btn:hover { background: #0284c7; }
+    .crop-cancel-btn { padding: 7px 14px; background: #1e2d3d; color: #94a3b8; border: 1px solid #263b4f; border-radius: 7px; font-size: .85rem; cursor: pointer; transition: background .15s, color .15s; }
+    .crop-cancel-btn:hover { background: #263b4f; color: #e2e8f0; }
+    /* Mode tabs */
+    .mode-tabs { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid #1e2d3d; flex-shrink: 0; }
+    .mode-tab { flex: 1; padding: 8px 0; background: #0d1117; color: #475569; font-size: .81rem; font-weight: 600; border: none; cursor: pointer; transition: background .15s, color .15s; }
+    .mode-tab.active { background: #0f2030; color: #38bdf8; }
+    .mode-tab:hover:not(.active) { background: #131b25; color: #94a3b8; }
+    /* Webcam */
+    #camera-area { display: none; flex-direction: column; gap: 8px; }
+    #webcam-video { width: 100%; border-radius: 10px; border: 1px solid #1e2d3d; background: #07090f; display: block; max-height: 260px; object-fit: cover; }
+    #webcam-err { background: #1c1010; border: 1px solid #7f1d1d; color: #fca5a5; border-radius: 8px; padding: 10px 12px; font-size: .8rem; display: none; }
+    #webcam-capture-btn { display: none; width: 100%; padding: 10px; background: #0f2030; color: #7dd3fc; border: 1px solid #1e3a5f; border-radius: 8px; font-size: .88rem; font-weight: 600; cursor: pointer; transition: background .2s; }
+    #webcam-capture-btn:hover { background: #162d45; }
+    #webcam-retry-btn { display: none; width: 100%; padding: 7px; background: #131b25; color: #64748b; border: 1px solid #1e2d3d; border-radius: 8px; font-size: .8rem; cursor: pointer; transition: background .15s, color .15s; }
+    #webcam-retry-btn:hover { background: #1e2d3d; color: #94a3b8; }
+    /* Error */
+    #error-msg { display: none; background: #1c1010; border: 1px solid #7f1d1d; color: #fca5a5; border-radius: 8px; padding: 12px 14px; font-size: .85rem; line-height: 1.5; }
+    /* Right empty */
+    #right-empty { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; color: #1e2d3d; text-align: center; }
+    #right-empty svg { width: 52px; height: 52px; }
+    #right-empty p { font-size: .82rem; color: #334155; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>AI Matematik Tanıma</h1>
+    <div class="header-spacer"></div>
+    <div class="header-right">
+      <span id="gpu-badge" class="gpu-badge cpu">CPU</span>
+      <button id="models-btn" title="Model yöneticisi">
+        ⊞ Modeller <span class="models-badge" id="models-loaded-badge">0/6</span>
+      </button>
+      <button id="settings-btn" title="Prompt ayarları">⚙ Ayarlar</button>
+    </div>
+  </header>
+
+  <main class="split">
+
+    <!-- Sol Panel -->
+    <div class="panel left-panel">
+      <div class="section-title">Ayarlar</div>
+
+      <div class="model-row">
+        <label>Model</label>
+        <select id="model-select">
+          <option value="florence2" selected>Florence-2 Base ★ – Tahta / Ekran / Belge (~310 MB)</option>
+          <option value="smolvlm">SmolVLM 256M – Görsel anlama / math prompt (~290 MB, CPU'da yavaş)</option>
+          <option value="trocr-hw">TrOCR Base – El yazısı / Tahta (~250 MB)</option>
+          <option value="trocr-printed">TrOCR Base – Basılı metin (~250 MB)</option>
+          <option value="moondream2">Moondream2 – Görsel anlama / math (~1.7 GB, WebGPU önerilir)</option>
+          <option value="qwen3vl">Qwen3-VL 2B – En güncel Qwen VL / math (~1.5 GB, WebGPU zorunlu)</option>
+        </select>
+      </div>
+
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tab-file">📁 Dosya</button>
+        <button class="mode-tab" id="tab-camera">📷 Kamera</button>
+      </div>
+
+      <div id="file-area">
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept="image/*" />
+          <div class="upload-icon">🖼️</div>
+          <p><span>Görsel seç</span> veya buraya sürükle</p>
+          <p style="margin-top:4px;font-size:.72rem;color:#334155;">PNG · JPG · WEBP</p>
+        </div>
+      </div>
+
+      <div id="camera-area">
+        <video id="webcam-video" autoplay playsinline muted></video>
+        <div id="webcam-err"></div>
+        <button id="webcam-capture-btn">📷 Çek</button>
+        <button id="webcam-retry-btn">🔄 Yeniden Çek</button>
+      </div>
+
+      <div class="preview-box" id="preview-container">
+        <img id="preview-img" src="" alt="Orijinal" />
+        <div class="preview-label">Orijinal Görsel</div>
+      </div>
+
+      <button id="crop-btn">✂ Kırp</button>
+
+      <div id="cropped-container">
+        <img id="cropped-img" src="" alt="Kırpılmış" />
+        <button id="crop-clear-btn" title="Kırpmayı kaldır">✕</button>
+        <div class="crop-preview-label">✂ Kırpılmış Alan</div>
+      </div>
+
+      <button id="analyze-btn">Tanımayı Başlat</button>
+    </div>
+
+    <!-- Sağ Panel -->
+    <div class="panel right-panel">
+      <div class="section-title">Analiz</div>
+
+      <div id="progress-wrap">
+        <div id="progress-label">Hazırlanıyor...</div>
+        <div class="bar-outer"><div class="bar-inner" id="progress-bar"></div></div>
+      </div>
+
+      <div id="error-msg"></div>
+
+      <div id="result-container">
+        <div class="results-grid">
+          <!-- Sol: Yalnızca matematik ifadeleri -->
+          <div class="ocr-col">
+            <div class="result-block">
+              <label>Tanınan İfade</label>
+              <div id="raw-text" style="font-family:'Courier New',monospace;font-size:1.05rem;color:#e2e8f0;margin-top:8px;word-break:break-all;"></div>
+            </div>
+            <div class="result-block" style="display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <div id="latex-source" style="font-family:'Courier New',monospace;font-size:.85rem;color:#86efac;"></div>
+              <button class="copy-btn" id="copy-btn" style="margin-top:0;flex-shrink:0">Kopyala</button>
+            </div>
+            <div class="result-block">
+              <label>LaTeX Görünümü</label>
+              <div id="latex-rendered" style="margin-top:8px;overflow-x:auto;"></div>
+            </div>
+          </div>
+          <!-- Sağ: Chat paneli (yalnızca VLM modeller) -->
+          <div id="chat-col" style="display:none">
+            <div class="result-block chat-block" style="padding:0">
+              <div class="chat-label">Serbest Analiz</div>
+              <div class="chat-messages" id="chat-messages"></div>
+              <div class="chat-input-row">
+                <input class="chat-input" id="chat-input" type="text" placeholder="Soru sor… (Enter ile gönder)" />
+                <button class="chat-send-btn" id="chat-send-btn">↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="right-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="3" y="3" width="18" height="18" rx="2.5"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+        <p>Sol taraftan görsel yükleyip<br/>"Tanımayı Başlat" butonuna basın</p>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import {
+      pipeline, env,
+      Florence2ForConditionalGeneration,
+      AutoModelForVision2Seq,
+      AutoProcessor,
+      AutoTokenizer,
+      Moondream1ForConditionalGeneration,
+      Qwen2VLForConditionalGeneration,
+      Qwen3VLForConditionalGeneration,
+      RawImage
+    } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4';
+
+    env.allowRemoteModels = true;
+    env.useBrowserCache   = true;
+
+    // Service Worker — HuggingFace model dosyalarını kalıcı önbellekle
+    var _swReady = false;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function() { _swReady = true; })
+        .catch(function() {});
+    }
+
+    // ─── WebGPU algılama ─────────────────────────────────────────────────────
+    var DEVICE = 'wasm';
+    var _gpuReady = (async function detectGPU() {
+      try {
+        if (navigator.gpu) {
+          var adapter = await navigator.gpu.requestAdapter();
+          if (adapter) {
+            DEVICE = 'webgpu';
+            document.getElementById('gpu-badge').textContent = 'WebGPU';
+            document.getElementById('gpu-badge').className = 'gpu-badge gpu';
+          }
+        }
+      } catch(e) {}
+    })();
+
+    const MODEL_DEFS = {
+      'florence2':     { id: 'onnx-community/Florence-2-base-ft',          type: 'florence2', label: 'Florence-2 Base',   size: '~310 MB', desc: 'Tahta / Ekran / Belge · ★ Önerilen' },
+      'smolvlm':       { id: 'HuggingFaceTB/SmolVLM-256M-Instruct',        type: 'vlm',       label: 'SmolVLM 256M',       size: '~290 MB', desc: 'Görsel anlama / math prompt' },
+      'trocr-hw':      { id: 'Xenova/trocr-base-handwritten',               type: 'trocr',     label: 'TrOCR Handwritten',  size: '~250 MB', desc: 'El yazısı / Tahta' },
+      'trocr-printed': { id: 'Xenova/trocr-base-printed',                   type: 'trocr',     label: 'TrOCR Printed',      size: '~250 MB', desc: 'Basılı metin' },
+      'moondream2':    { id: 'Xenova/moondream2',                           type: 'moondream', label: 'Moondream2',         size: '~1.7 GB', desc: 'Görsel anlama / math · WebGPU önerilir' },
+      'qwen3vl':       { id: 'huggingworld/Qwen3-VL-2B-Instruct-ONNX',       type: 'qwen3vl',   label: 'Qwen3-VL 2B',        size: '~1.5 GB', desc: 'En güncel Qwen VL · OCR / math · WebGPU zorunlu' },
+    };
+
+    const fileInput          = document.getElementById('file-input');
+    const uploadArea         = document.getElementById('upload-area');
+    const previewContainer   = document.getElementById('preview-container');
+    const previewImg         = document.getElementById('preview-img');
+    const analyzeBtn         = document.getElementById('analyze-btn');
+    const progressWrap       = document.getElementById('progress-wrap');
+    const progressLabel      = document.getElementById('progress-label');
+    const progressBar        = document.getElementById('progress-bar');
+    const resultContainer    = document.getElementById('result-container');
+    const rawTextEl          = document.getElementById('raw-text');
+    const latexSourceEl      = document.getElementById('latex-source');
+    const latexRenderedEl    = document.getElementById('latex-rendered');
+    const errorMsgEl         = document.getElementById('error-msg');
+    const modelSelect        = document.getElementById('model-select');
+    const copyBtn            = document.getElementById('copy-btn');
+    const modelsBtn          = document.getElementById('models-btn');
+    const modelsLoadedBadge  = document.getElementById('models-loaded-badge');
+    const modelsModal        = document.getElementById('models-modal');
+    const modalBody          = document.getElementById('modal-body');
+    const modalCloseBtn      = document.getElementById('modal-close-btn');
+    const rightEmpty         = document.getElementById('right-empty');
+    const settingsBtn        = document.getElementById('settings-btn');
+    const settingsModal      = document.getElementById('settings-modal');
+    const settingsCloseBtn   = document.getElementById('settings-close-btn');
+    const promptTextarea     = document.getElementById('prompt-textarea');
+    const promptResetBtn     = document.getElementById('prompt-reset-btn');
+    const promptSavedInd     = document.getElementById('prompt-saved-indicator');
+
+    const VLM_CHAT_TYPES = { 'vlm': true, 'moondream': true, 'qwen2vl': true, 'qwen3vl': true };
+
+    let currentFile             = null;
+    let currentLatex            = '';
+    let currentDataUrl          = null;
+    let currentCapturedDataUrl  = null;
+    let _cropSourceUrl          = null;
+    let _inputMode              = 'file';
+    let _webcamStream           = null;
+    let _chatBusy               = false;
+    let loadedModelKey   = '';
+    let florenceModel    = null;
+    let florenceProc     = null;
+    let genericPipe      = null;
+    let moondreamModel   = null;
+    let moondreamProc    = null;
+    let moondreamTokenizer = null;
+    let qwen2vlModel     = null;
+    let qwen2vlProc      = null;
+    let qwen3vlModel     = null;
+    let qwen3vlProc      = null;
+
+    // ─── VLM Prompt ───────────────────────────────────────────────────────────
+    var _PROMPT_KEY     = 'ai01_vlm_prompt';
+    var _DEFAULT_PROMPT = 'Görseldeki matematik işlemlerini ve denklemleri detaylıca açıkla. Varsa hesaplama adımlarını ve sonucu göster.';
+
+    function getVlmPrompt() {
+      return localStorage.getItem(_PROMPT_KEY) || _DEFAULT_PROMPT;
+    }
+    function saveVlmPrompt(text) {
+      var val = (text || '').trim();
+      if (val) localStorage.setItem(_PROMPT_KEY, val);
+      else localStorage.removeItem(_PROMPT_KEY);
+    }
+
+    // ─── Settings Modal ───────────────────────────────────────────────────────
+    function openSettingsModal() {
+      promptTextarea.value = getVlmPrompt();
+      settingsModal.style.display = 'flex';
+      promptTextarea.focus();
+    }
+
+    settingsBtn.addEventListener('click', openSettingsModal);
+    settingsCloseBtn.addEventListener('click', function() { settingsModal.style.display = 'none'; });
+    settingsModal.addEventListener('click', function(e) { if (e.target === settingsModal) settingsModal.style.display = 'none'; });
+
+    var _promptSaveTimer = null;
+    promptTextarea.addEventListener('input', function() {
+      clearTimeout(_promptSaveTimer);
+      _promptSaveTimer = setTimeout(function() {
+        saveVlmPrompt(promptTextarea.value);
+        promptSavedInd.style.opacity = '1';
+        setTimeout(function() { promptSavedInd.style.opacity = '0'; }, 1800);
+      }, 500);
+    });
+
+    promptResetBtn.addEventListener('click', function() {
+      promptTextarea.value = _DEFAULT_PROMPT;
+      saveVlmPrompt(_DEFAULT_PROMPT);
+      promptSavedInd.style.opacity = '1';
+      setTimeout(function() { promptSavedInd.style.opacity = '0'; }, 1800);
+    });
+
+    // ─── Önbellek takibi ve per-model otomatik yükleme (localStorage) ──────────
+    var _CACHED_KEY   = 'ai01_cached_models';
+    var _AUTOLOAD_KEY = 'ai01_autoload_models';
+    var _SIZE_KEY     = 'ai01_model_sizes';
+
+    function getModelSizes() {
+      try { return JSON.parse(localStorage.getItem(_SIZE_KEY) || '{}'); } catch(e) { return {}; }
+    }
+    function saveModelSize(key, bytes) {
+      if (!bytes) return;
+      var sizes = getModelSizes();
+      sizes[key] = bytes;
+      localStorage.setItem(_SIZE_KEY, JSON.stringify(sizes));
+    }
+    function getModelSize(key) {
+      return getModelSizes()[key] || 0;
+    }
+    function formatModelSize(bytes) {
+      if (!bytes) return '';
+      if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+      if (bytes >= 1048576)    return (bytes / 1048576).toFixed(0) + ' MB';
+      return (bytes / 1024).toFixed(0) + ' KB';
+    }
+
+    function getCachedModels() {
+      var v = localStorage.getItem(_CACHED_KEY);
+      return v ? v.split(',').filter(Boolean) : [];
+    }
+    function isCachedModel(key) {
+      return getCachedModels().indexOf(key) !== -1;
+    }
+    function markModelCached(key) {
+      var list = getCachedModels();
+      if (list.indexOf(key) === -1) {
+        list.push(key);
+        localStorage.setItem(_CACHED_KEY, list.join(','));
+      }
+    }
+    function getAutoLoadModels() {
+      var v = localStorage.getItem(_AUTOLOAD_KEY);
+      return v ? v.split(',').filter(Boolean) : [];
+    }
+    function isAutoLoadEnabled(key) {
+      return getAutoLoadModels().indexOf(key) !== -1;
+    }
+    function setAutoLoad(key, enabled) {
+      var list = getAutoLoadModels();
+      var idx  = list.indexOf(key);
+      if (enabled && idx === -1) {
+        list.push(key);
+        localStorage.setItem(_AUTOLOAD_KEY, list.join(','));
+      } else if (!enabled && idx !== -1) {
+        list.splice(idx, 1);
+        localStorage.setItem(_AUTOLOAD_KEY, list.join(','));
+      }
+    }
+
+    // ─── Model state & modal ──────────────────────────────────────────────────
+    const _modelStates = {};
+    const _modelErrors = {};
+
+    function isModelLoaded(key) {
+      if (key === 'florence2') return !!florenceModel;
+      if (key === 'moondream2') return !!moondreamModel;
+      if (key === 'qwen2vl') return !!qwen2vlModel;
+      if (key === 'qwen3vl') return !!qwen3vlModel;
+      return !!genericPipe && loadedModelKey === key;
+    }
+
+    function getModelState(key) {
+      if (isModelLoaded(key)) return 'loaded';
+      if (_modelStates[key] === 'loading' || _modelStates[key] === 'error') return _modelStates[key];
+      if (isCachedModel(key)) return 'cached';
+      return 'unloaded';
+    }
+
+    function setModelState(key, state) {
+      _modelStates[key] = state;
+      if (state === 'loaded') markModelCached(key);
+      _refreshModalRow(key);
+      _refreshBadge();
+    }
+
+    function _refreshBadge() {
+      var n = Object.keys(MODEL_DEFS).filter(function(k) { return isModelLoaded(k); }).length;
+      var anyLoading = Object.keys(MODEL_DEFS).some(function(k) { return _modelStates[k] === 'loading'; });
+      modelsLoadedBadge.textContent = n + '/' + Object.keys(MODEL_DEFS).length;
+      modelsLoadedBadge.style.animation    = anyLoading ? 'blink 1s infinite' : '';
+      modelsLoadedBadge.style.color        = anyLoading ? '#fbbf24' : '';
+      modelsLoadedBadge.style.background   = anyLoading ? '#451a03' : '';
+      modelsLoadedBadge.style.border       = anyLoading ? '1px solid #78350f' : '';
+    }
+
+    function _refreshModalRow(key) {
+      var row = document.getElementById('modal-row-' + key);
+      if (!row) return;
+      var state  = getModelState(key);
+      var labels = { loaded: 'Yüklü', loading: 'Yükleniyor…', error: 'Hata', unloaded: 'Yüklü Değil', cached: 'Önbellekte' };
+      var badge  = row.querySelector('.modal-status');
+      var btn    = row.querySelector('.modal-load-btn');
+      var atog   = row.querySelector('.autoload-toggle');
+      if (badge) {
+        badge.className = 'modal-status ' + state;
+        var szLabel = (state === 'loaded' || state === 'cached') ? formatModelSize(getModelSize(key)) : '';
+        badge.textContent = labels[state] + (szLabel ? ' · ' + szLabel : '');
+        badge.title = state === 'error' && _modelErrors[key] ? _modelErrors[key] : '';
+      }
+      if (btn)   { btn.disabled = (state === 'loading' || state === 'loaded'); btn.textContent = state === 'loaded' ? '✓ Yüklü' : 'İndir'; }
+      if (atog)  { atog.checked = isAutoLoadEnabled(atog.dataset.key); }
+    }
+
+    function _renderModal() {
+      modalBody.innerHTML = '';
+      var labels = { loaded: 'Yüklü', loading: 'Yükleniyor…', error: 'Hata', unloaded: 'Yüklü Değil', cached: 'Önbellekte' };
+      for (var k in MODEL_DEFS) {
+        var def   = MODEL_DEFS[k];
+        var state = getModelState(k);
+        var row   = document.createElement('div');
+        row.className = 'modal-row';
+        row.id = 'modal-row-' + k;
+        row.innerHTML =
+          '<div class="modal-row-info">' +
+            '<div class="modal-row-name">' + def.label + '</div>' +
+            '<div class="modal-row-meta">' + def.size + ' · ' + def.desc + '</div>' +
+          '</div>' +
+          '<div class="modal-row-actions">' +
+            '<div class="modal-row-autoload">' +
+              '<span class="modal-row-autoload-label">Açılışta yükle</span>' +
+              '<label class="toggle-switch-sm" title="Sayfa açılışında otomatik belleğe yükle">' +
+                '<input type="checkbox" class="autoload-toggle" data-key="' + k + '"' + (isAutoLoadEnabled(k) ? ' checked' : '') + '>' +
+                '<span class="toggle-slider-sm"></span>' +
+              '</label>' +
+            '</div>' +
+            '<span class="modal-status ' + state + '">' + labels[state] + (((state === 'loaded' || state === 'cached') && formatModelSize(getModelSize(k))) ? ' · ' + formatModelSize(getModelSize(k)) : '') + '</span>' +
+            '<button class="modal-load-btn" data-key="' + k + '"' + (state === 'loading' || state === 'loaded' ? ' disabled' : '') + '>' +
+              (state === 'loaded' ? '✓ Yüklü' : 'İndir') +
+            '</button>' +
+          '</div>';
+        modalBody.appendChild(row);
+      }
+    }
+
+    modelsBtn.addEventListener('click', function() {
+      _renderModal();
+      modelsModal.style.display = 'flex';
+    });
+
+    modalCloseBtn.addEventListener('click', function() {
+      modelsModal.style.display = 'none';
+    });
+
+    modelsModal.addEventListener('click', function(e) {
+      if (e.target === modelsModal) modelsModal.style.display = 'none';
+    });
+
+    modalBody.addEventListener('change', function(e) {
+      var tog = e.target.closest('.autoload-toggle');
+      if (!tog) return;
+      setAutoLoad(tog.dataset.key, tog.checked);
+    });
+
+    modalBody.addEventListener('click', async function(e) {
+      var btn = e.target.closest('.modal-load-btn');
+      if (!btn || btn.disabled) return;
+      var key = btn.dataset.key;
+      var _isCached = isCachedModel(key);
+      setModelState(key, 'loading');
+      try {
+        await loadModel(key, function(p) {
+          var row = document.getElementById('modal-row-' + key);
+          if (!row) return;
+          var badge = row.querySelector('.modal-status');
+          var name  = (p.file || '').split('/').pop();
+          if (p.status === 'initiate') {
+            if (badge) badge.textContent = name ? name + (_isCached ? ' önbellekten…' : ' bekleniyor…') : 'Yükleniyor…';
+          } else if (p.status === 'downloading' || p.status === 'progress') {
+            var pct = p.total ? Math.round((p.loaded / p.total) * 100) : 0;
+            if (badge) badge.textContent = name ? name + ' ' + pct + '%' : (_isCached ? 'Önbellekten yükleniyor…' : 'Yükleniyor…');
+          } else if (p.status === 'done') {
+            if (badge) badge.textContent = name ? name + ' ✓' : 'Yükleniyor…';
+          }
+        });
+        setModelState(key, 'loaded');
+      } catch (err) {
+        _modelErrors[key] = err.message || 'Bilinmeyen hata';
+        setModelState(key, 'error');
+      }
+    });
+
+    // ─── Crop ────────────────────────────────────────────────────────────────
+    var currentCropDataUrl = null;
+    var _cropOrigImg = null;
+    var _cropSel = null;
+    var _cropDragStart = null;
+    var cropBtn         = document.getElementById('crop-btn');
+    var croppedContainer = document.getElementById('cropped-container');
+    var croppedImg      = document.getElementById('cropped-img');
+    var cropClearBtn    = document.getElementById('crop-clear-btn');
+    var cropModal       = document.getElementById('crop-modal');
+    var cropCanvas      = document.getElementById('crop-canvas');
+    var cropCtx         = cropCanvas.getContext('2d');
+    var cropCancelBtn   = document.getElementById('crop-cancel-btn');
+    var cropOkBtn       = document.getElementById('crop-ok-btn');
+
+    function _normalizeSel(sel) {
+      return {
+        x: Math.round(sel.w >= 0 ? sel.x : sel.x + sel.w),
+        y: Math.round(sel.h >= 0 ? sel.y : sel.y + sel.h),
+        w: Math.round(Math.abs(sel.w)),
+        h: Math.round(Math.abs(sel.h))
+      };
+    }
+
+    function _drawCropCanvas() {
+      var W = cropCanvas.width, H = cropCanvas.height;
+      cropCtx.clearRect(0, 0, W, H);
+      if (_cropOrigImg) cropCtx.drawImage(_cropOrigImg, 0, 0, W, H);
+      if (_cropSel) {
+        var n = _normalizeSel(_cropSel);
+        if (n.w > 2 && n.h > 2) {
+          cropCtx.fillStyle = 'rgba(0,0,0,0.52)';
+          cropCtx.fillRect(0, 0, W, H);
+          if (_cropOrigImg) {
+            var isx = _cropOrigImg.naturalWidth / W;
+            var isy = _cropOrigImg.naturalHeight / H;
+            cropCtx.drawImage(_cropOrigImg, n.x * isx, n.y * isy, n.w * isx, n.h * isy, n.x, n.y, n.w, n.h);
+          }
+          cropCtx.strokeStyle = '#38bdf8';
+          cropCtx.lineWidth = 1.5;
+          cropCtx.setLineDash([5, 3]);
+          cropCtx.strokeRect(n.x + 0.5, n.y + 0.5, n.w - 1, n.h - 1);
+          cropCtx.setLineDash([]);
+          var hs = 6;
+          cropCtx.fillStyle = '#38bdf8';
+          [[n.x, n.y], [n.x + n.w, n.y], [n.x, n.y + n.h], [n.x + n.w, n.y + n.h]].forEach(function(pt) {
+            cropCtx.fillRect(pt[0] - hs / 2, pt[1] - hs / 2, hs, hs);
+          });
+        }
+      }
+    }
+
+    function _cropCanvasCoords(e) {
+      var r = cropCanvas.getBoundingClientRect();
+      var sx = cropCanvas.width / r.width;
+      var sy = cropCanvas.height / r.height;
+      var src = e.touches ? e.touches[0] : e;
+      return {
+        x: Math.max(0, Math.min(cropCanvas.width,  (src.clientX - r.left) * sx)),
+        y: Math.max(0, Math.min(cropCanvas.height, (src.clientY - r.top)  * sy))
+      };
+    }
+
+    function _onCropStart(e) {
+      var p = _cropCanvasCoords(e);
+      _cropDragStart = p;
+      _cropSel = { x: p.x, y: p.y, w: 0, h: 0 };
+      e.preventDefault();
+    }
+    function _onCropMove(e) {
+      if (!_cropDragStart) return;
+      var p = _cropCanvasCoords(e);
+      _cropSel.w = p.x - _cropDragStart.x;
+      _cropSel.h = p.y - _cropDragStart.y;
+      _drawCropCanvas();
+      e.preventDefault();
+    }
+    function _onCropEnd() { _cropDragStart = null; }
+
+    cropCanvas.addEventListener('mousedown', _onCropStart);
+    cropCanvas.addEventListener('mousemove', _onCropMove);
+    cropCanvas.addEventListener('mouseup',   _onCropEnd);
+    cropCanvas.addEventListener('mouseleave',_onCropEnd);
+    cropCanvas.addEventListener('touchstart', _onCropStart, { passive: false });
+    cropCanvas.addEventListener('touchmove',  _onCropMove,  { passive: false });
+    cropCanvas.addEventListener('touchend',   _onCropEnd,   { passive: false });
+
+    function openCropModal() {
+      if (!_cropSourceUrl) return;
+      _cropSel = null; _cropDragStart = null; _cropOrigImg = null;
+      var img = new Image();
+      img.onload = function() {
+        _cropOrigImg = img;
+        var MAX = 1800;
+        var scale = (img.naturalWidth > MAX || img.naturalHeight > MAX)
+          ? Math.min(MAX / img.naturalWidth, MAX / img.naturalHeight) : 1;
+        cropCanvas.width  = Math.round(img.naturalWidth  * scale);
+        cropCanvas.height = Math.round(img.naturalHeight * scale);
+        _drawCropCanvas();
+        cropModal.style.display = 'flex';
+      };
+      img.src = _cropSourceUrl;
+    }
+
+    cropBtn.addEventListener('click', openCropModal);
+    cropCancelBtn.addEventListener('click', function() { cropModal.style.display = 'none'; });
+    cropModal.addEventListener('click', function(e) { if (e.target === cropModal) cropModal.style.display = 'none'; });
+
+    cropOkBtn.addEventListener('click', function() {
+      if (!_cropSel || !_cropOrigImg) { cropModal.style.display = 'none'; return; }
+      var n = _normalizeSel(_cropSel);
+      if (n.w < 5 || n.h < 5) { cropModal.style.display = 'none'; return; }
+      var isx = _cropOrigImg.naturalWidth  / cropCanvas.width;
+      var isy = _cropOrigImg.naturalHeight / cropCanvas.height;
+      var sx = Math.max(0, Math.round(n.x * isx));
+      var sy = Math.max(0, Math.round(n.y * isy));
+      var sw = Math.min(Math.round(n.w * isx), _cropOrigImg.naturalWidth  - sx);
+      var sh = Math.min(Math.round(n.h * isy), _cropOrigImg.naturalHeight - sy);
+      if (sw < 1 || sh < 1) { cropModal.style.display = 'none'; return; }
+      var out = document.createElement('canvas');
+      out.width = sw; out.height = sh;
+      out.getContext('2d').drawImage(_cropOrigImg, sx, sy, sw, sh, 0, 0, sw, sh);
+      currentCropDataUrl = out.toDataURL('image/jpeg', 0.92);
+      croppedImg.src = currentCropDataUrl;
+      croppedContainer.style.display = 'block';
+      cropModal.style.display = 'none';
+    });
+
+    cropClearBtn.addEventListener('click', function() {
+      currentCropDataUrl = null;
+      croppedContainer.style.display = 'none';
+      croppedImg.src = '';
+    });
+
+    // ─── Webcam ───────────────────────────────────────────────────────────────
+    var tabFile         = document.getElementById('tab-file');
+    var tabCamera       = document.getElementById('tab-camera');
+    var fileArea        = document.getElementById('file-area');
+    var cameraArea      = document.getElementById('camera-area');
+    var webcamVideo     = document.getElementById('webcam-video');
+    var webcamErr       = document.getElementById('webcam-err');
+    var webcamCaptureBtn = document.getElementById('webcam-capture-btn');
+    var webcamRetryBtn  = document.getElementById('webcam-retry-btn');
+
+    function _stopWebcam() {
+      if (_webcamStream) {
+        _webcamStream.getTracks().forEach(function(t) { t.stop(); });
+        _webcamStream = null;
+        webcamVideo.srcObject = null;
+      }
+    }
+
+    async function _startWebcam() {
+      webcamErr.style.display = 'none';
+      webcamVideo.style.display = 'none';
+      webcamCaptureBtn.style.display = 'none';
+      try {
+        _webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        webcamVideo.srcObject = _webcamStream;
+        webcamVideo.style.display = 'block';
+        webcamCaptureBtn.style.display = 'block';
+      } catch(e) {
+        webcamErr.textContent = 'Kamera açılamadı: ' + (e.message || e.name);
+        webcamErr.style.display = 'block';
+      }
+    }
+
+    function _resetInputState() {
+      currentFile = null;
+      currentCapturedDataUrl = null;
+      currentCropDataUrl = null;
+      _cropSourceUrl = null;
+      croppedContainer.style.display = 'none';
+      croppedImg.src = '';
+      previewContainer.style.display = 'none';
+      previewImg.src = '';
+      cropBtn.style.display = 'none';
+      analyzeBtn.style.display = 'none';
+    }
+
+    tabFile.addEventListener('click', function() {
+      if (_inputMode === 'file') return;
+      _inputMode = 'file';
+      _stopWebcam();
+      tabFile.classList.add('active');
+      tabCamera.classList.remove('active');
+      fileArea.style.display = 'block';
+      cameraArea.style.display = 'none';
+      webcamRetryBtn.style.display = 'none';
+      _resetInputState();
+    });
+
+    tabCamera.addEventListener('click', function() {
+      if (_inputMode === 'camera') return;
+      _inputMode = 'camera';
+      tabCamera.classList.add('active');
+      tabFile.classList.remove('active');
+      fileArea.style.display = 'none';
+      cameraArea.style.display = 'flex';
+      webcamRetryBtn.style.display = 'none';
+      _resetInputState();
+      _startWebcam();
+    });
+
+    webcamCaptureBtn.addEventListener('click', function() {
+      if (!_webcamStream || !webcamVideo.videoWidth) return;
+      var c = document.createElement('canvas');
+      c.width = webcamVideo.videoWidth;
+      c.height = webcamVideo.videoHeight;
+      c.getContext('2d').drawImage(webcamVideo, 0, 0);
+      var dataUrl = c.toDataURL('image/jpeg', 0.92);
+
+      currentCapturedDataUrl = dataUrl;
+      _cropSourceUrl = dataUrl;
+      currentCropDataUrl = null;
+      croppedContainer.style.display = 'none';
+      croppedImg.src = '';
+
+      previewImg.src = dataUrl;
+      previewContainer.style.display = 'block';
+      cropBtn.style.display = 'block';
+      analyzeBtn.style.display = 'block';
+
+      webcamCaptureBtn.style.display = 'none';
+      webcamVideo.style.display = 'none';
+      webcamRetryBtn.style.display = 'block';
+
+      resultContainer.style.display = 'none';
+      errorMsgEl.style.display = 'none';
+      rightEmpty.style.display = 'none';
+    });
+
+    webcamRetryBtn.addEventListener('click', function() {
+      currentCapturedDataUrl = null;
+      _cropSourceUrl = null;
+      currentCropDataUrl = null;
+      croppedContainer.style.display = 'none';
+      croppedImg.src = '';
+      previewContainer.style.display = 'none';
+      previewImg.src = '';
+      cropBtn.style.display = 'none';
+      analyzeBtn.style.display = 'none';
+      webcamRetryBtn.style.display = 'none';
+      webcamVideo.style.display = 'block';
+      webcamCaptureBtn.style.display = 'block';
+    });
+
+    // ─── Drag & Drop ──────────────────────────────────────────────────────────
+    uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+    uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('drag-over'); });
+    uploadArea.addEventListener('drop', function(e) {
+      e.preventDefault(); uploadArea.classList.remove('drag-over');
+      var f = e.dataTransfer.files[0];
+      if (f && f.type.startsWith('image/')) handleFile(f);
+    });
+    fileInput.addEventListener('change', function() { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+    function handleFile(file) {
+      currentFile = file;
+      currentCapturedDataUrl = null;
+      currentCropDataUrl = null;
+      _cropSourceUrl = URL.createObjectURL(file);
+      croppedContainer.style.display = 'none';
+      croppedImg.src = '';
+      previewImg.src = _cropSourceUrl;
+      previewContainer.style.display = 'block';
+      cropBtn.style.display = 'block';
+      analyzeBtn.style.display = 'block';
+      resultContainer.style.display = 'none';
+      errorMsgEl.style.display = 'none';
+      rightEmpty.style.display = 'none';
+    }
+
+    // ─── Image Processing ─────────────────────────────────────────────────────
+    function toGray(data, W, H) {
+      var g = new Uint8Array(W * H);
+      for (var i = 0; i < W * H; i++)
+        g[i] = Math.round(0.299*data[i*4] + 0.587*data[i*4+1] + 0.114*data[i*4+2]);
+      return g;
+    }
+
+    function arrToCanvas(arr, W, H) {
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      var id = ctx.createImageData(W, H);
+      for (var i = 0; i < W*H; i++) {
+        id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = arr[i];
+        id.data[i*4+3] = 255;
+      }
+      ctx.putImageData(id, 0, 0);
+      return c;
+    }
+
+    function sharpen(gray, W, H, amount) {
+      if (amount === undefined) amount = 1.8;
+      var blur = new Uint8Array(W * H);
+      var K = [1,4,6,4,1, 4,16,24,16,4, 6,24,36,24,6, 4,16,24,16,4, 1,4,6,4,1];
+      for (var y = 0; y < H; y++) {
+        for (var x = 0; x < W; x++) {
+          var s = 0;
+          for (var ky = -2; ky <= 2; ky++)
+            for (var kx = -2; kx <= 2; kx++) {
+              var py = Math.min(H-1, Math.max(0, y+ky));
+              var px = Math.min(W-1, Math.max(0, x+kx));
+              s += gray[py*W+px] * K[(ky+2)*5+(kx+2)];
+            }
+          blur[y*W+x] = Math.round(s / 256);
+        }
+      }
+      var out = new Uint8Array(W * H);
+      for (var i = 0; i < W*H; i++)
+        out[i] = Math.min(255, Math.max(0, Math.round(gray[i] + amount * (gray[i] - blur[i]))));
+      return out;
+    }
+
+    function findTextRegion(gray, W, H) {
+      var sw = Math.ceil(W / 4), sh = Math.ceil(H / 4);
+      var s  = new Uint8Array(sw * sh);
+      for (var y = 0; y < sh; y++)
+        for (var x = 0; x < sw; x++)
+          s[y*sw+x] = gray[Math.min(H-1,y*4)*W + Math.min(W-1,x*4)];
+      var hv = 2, n = Math.pow(2*hv+1, 2);
+      var hv2 = new Uint8Array(sw * sh);
+      for (var y2 = hv; y2 < sh-hv; y2++) {
+        for (var x2 = hv; x2 < sw-hv; x2++) {
+          var sum = 0, sum2 = 0;
+          for (var dy = -hv; dy <= hv; dy++)
+            for (var dx = -hv; dx <= hv; dx++) {
+              var v = s[(y2+dy)*sw+(x2+dx)]; sum += v; sum2 += v*v;
+            }
+          var mean = sum / n;
+          hv2[y2*sw+x2] = (sum2/n - mean*mean) > 300 ? 1 : 0;
+        }
+      }
+      var rowD = new Float32Array(sh);
+      var colD = new Float32Array(sw);
+      for (var yr = 0; yr < sh; yr++) { var cr=0; for (var xr=0;xr<sw;xr++) cr+=hv2[yr*sw+xr]; rowD[yr]=cr/sw; }
+      for (var xc = 0; xc < sw; xc++) { var cc2=0; for (var yc=0;yc<sh;yc++) cc2+=hv2[yc*sw+xc]; colD[xc]=cc2/sh; }
+      function longestRun(frac, len, thr) {
+        var bLen=0, bStart=0, cur=0, cStart=0;
+        for (var i=0;i<len;i++) {
+          if (frac[i]>=thr) { if (!cur) cStart=i; if (++cur>bLen){bLen=cur;bStart=cStart;} } else cur=0;
+        }
+        return bLen>=3 ? {start:bStart, end:bStart+bLen-1} : null;
+      }
+      var rr = longestRun(rowD, sh, 0.06);
+      var cc = longestRun(colD, sw, 0.05);
+      if (!rr || !cc) return null;
+      return { minY: rr.start*4, maxY: Math.min(H-1,(rr.end+1)*4), minX: cc.start*4, maxX: Math.min(W-1,(cc.end+1)*4) };
+    }
+
+    function extractTextLine(canvas) {
+      var W = canvas.width, H = canvas.height;
+      var ctx = canvas.getContext('2d');
+      var gray = toGray(ctx.getImageData(0,0,W,H).data, W, H);
+      var rowVar = new Float32Array(H);
+      for (var y = 0; y < H; y++) {
+        var sum = 0, sum2 = 0;
+        for (var x = 0; x < W; x++) { var v = gray[y*W+x]; sum += v; sum2 += v*v; }
+        var m = sum / W;
+        rowVar[y] = sum2/W - m*m;
+      }
+      var maxVar = 0;
+      for (var i = 0; i < H; i++) if (rowVar[i] > maxVar) maxVar = rowVar[i];
+      var thr = maxVar * 0.15;
+      var bLen = 0, bStart = 0, cur = 0, cStart = 0;
+      for (var y2 = 0; y2 < H; y2++) {
+        if (rowVar[y2] >= thr) {
+          if (!cur) cStart = y2;
+          if (++cur > bLen) { bLen = cur; bStart = cStart; }
+        } else cur = 0;
+      }
+      if (bLen < 5) return canvas;
+      var pad = Math.round(H * 0.08);
+      var ty  = Math.max(0, bStart - pad);
+      var bh  = Math.min(H, bStart + bLen + pad) - ty;
+      if (bh < 40) return canvas;
+      var out = document.createElement('canvas');
+      out.width = W; out.height = bh;
+      var oCtx = out.getContext('2d');
+      oCtx.fillStyle = '#fff';
+      oCtx.fillRect(0, 0, W, bh);
+      oCtx.drawImage(canvas, 0, ty, W, bh, 0, 0, W, bh);
+      return out;
+    }
+
+    function prepareImage(file) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          var MAX = 1920;
+          var scale = img.width > MAX || img.height > MAX
+            ? Math.min(MAX / img.width, MAX / img.height)
+            : 1;
+          var W = Math.round(img.width * scale);
+          var H = Math.round(img.height * scale);
+          var c = document.createElement('canvas');
+          c.width = W; c.height = H;
+          c.getContext('2d').drawImage(img, 0, 0, W, H);
+          var url = c.toDataURL('image/jpeg', 0.92);
+          resolve({ previewUrl: url, dataUrl: url });
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    function prepareImageFromDataUrl(dataUrl) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          var MAX = 1920;
+          var scale = img.width > MAX || img.height > MAX
+            ? Math.min(MAX / img.width, MAX / img.height)
+            : 1;
+          var W = Math.round(img.width * scale);
+          var H = Math.round(img.height * scale);
+          var c = document.createElement('canvas');
+          c.width = W; c.height = H;
+          c.getContext('2d').drawImage(img, 0, 0, W, H);
+          var url = c.toDataURL('image/jpeg', 0.92);
+          resolve({ previewUrl: url, dataUrl: url });
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+    }
+
+    // ─── LaTeX ────────────────────────────────────────────────────────────────
+    function extractMath(text) {
+      var norm = text
+        .replace(/[×x✕]/g, '*').replace(/[÷:]/g, '/')
+        .replace(/[oO]/g, '0').replace(/[lI|]/g, '1').replace(/\s+/g, '');
+      return (norm.match(/[0-9+\-=*\/().^]/g) || []).join('').trim();
+    }
+
+    function toLatex(expr) {
+      var s = expr.replace(/\*/g, '\\times ');
+      for (var i = 0; i < 5; i++) {
+        var b = s;
+        s = s.replace(/(-?\d+)\s*\/\s*(-?\d+)/g, '\\frac{$1}{$2}');
+        if (s === b) break;
+      }
+      return s;
+    }
+
+    // ─── loadModel ────────────────────────────────────────────────────────────
+    async function loadModel(key, onProgress) {
+      var def = MODEL_DEFS[key];
+      if (!def) throw new Error('Bilinmeyen model: ' + key);
+
+      var _sizeAccum = 0;
+      var _wasCached = isCachedModel(key);
+
+      var cb = function(p) {
+        if (p.status === 'done' && p.total) { _sizeAccum += p.total; }
+        if (progressWrap.style.display === 'flex') {
+          if (p.status === 'initiate') {
+            var name0 = (p.file || '').split('/').pop();
+            progressLabel.textContent = (_wasCached ? 'Önbellekten: ' : 'Bekleniyor: ') + (name0 || '…');
+          } else if (p.status === 'downloading' || p.status === 'progress') {
+            var name = (p.file || '').split('/').pop();
+            var pct  = p.total ? Math.round((p.loaded / p.total) * 100) : 0;
+            progressBar.style.width = Math.max(5, Math.min(78, pct * 0.78)) + '%';
+            progressLabel.textContent = (_wasCached ? 'Önbellekten yükleniyor: ' : 'İndiriliyor: ') + (name || '…') + ' (' + pct + '%)';
+          } else if (p.status === 'done') {
+            progressBar.style.width = '82%';
+            progressLabel.textContent = 'Model hazır, tanıma başlıyor…';
+          }
+        }
+        if (onProgress) onProgress(p);
+      };
+
+      var _saveSizeIfNew = function() {
+        if (_sizeAccum > 0 && !getModelSize(key)) saveModelSize(key, _sizeAccum);
+      };
+
+      // WebGPU varsa fp16, yoksa quantized dtype kullan
+      var isGPU = DEVICE === 'webgpu';
+
+      if (def.type === 'florence2') {
+        if (florenceModel) return;
+        var f2dtype = { embed_tokens: 'fp32', vision_encoder: 'fp32', encoder: 'fp32', decoder: 'fp32', embed_out: 'fp32' };
+        var loaded = await Promise.all([
+          Florence2ForConditionalGeneration.from_pretrained(def.id, {
+            dtype: f2dtype,
+            device: DEVICE,
+            progress_callback: cb,
+          }),
+          AutoProcessor.from_pretrained(def.id),
+        ]);
+        florenceModel = loaded[0];
+        florenceProc  = loaded[1];
+        _saveSizeIfNew();
+      } else if (def.type === 'vlm') {
+        if (genericPipe && loadedModelKey === key) return;
+        var vlmLoaded = await Promise.all([
+          AutoModelForVision2Seq.from_pretrained(def.id, {
+            dtype: 'q4',
+            device: DEVICE,
+            progress_callback: cb,
+          }),
+          AutoProcessor.from_pretrained(def.id),
+        ]);
+        genericPipe    = { model: vlmLoaded[0], processor: vlmLoaded[1] };
+        loadedModelKey = key;
+        _saveSizeIfNew();
+      } else if (def.type === 'moondream') {
+        if (moondreamModel) return;
+        var mdDtype = isGPU ? { embed_tokens: 'fp16', vision_encoder: 'fp16', decoder_model_merged: 'q4f16' } : 'q4';
+        var mdLoaded = await Promise.all([
+          Moondream1ForConditionalGeneration.from_pretrained(def.id, {
+            dtype: mdDtype,
+            device: DEVICE,
+            progress_callback: cb,
+          }),
+          AutoProcessor.from_pretrained(def.id),
+          AutoTokenizer.from_pretrained(def.id),
+        ]);
+        moondreamModel     = mdLoaded[0];
+        moondreamProc      = mdLoaded[1];
+        moondreamTokenizer = mdLoaded[2];
+        loadedModelKey     = key;
+        _saveSizeIfNew();
+      } else if (def.type === 'qwen2vl') {
+        if (qwen2vlModel) return;
+        var qDtype = { embed_tokens: 'q4', vision_encoder: 'q4', decoder_model_merged: 'q4' };
+        var qLoaded = await Promise.all([
+          Qwen2VLForConditionalGeneration.from_pretrained(def.id, {
+            dtype: qDtype,
+            device: DEVICE,
+            progress_callback: cb,
+          }),
+          AutoProcessor.from_pretrained(def.id),
+        ]);
+        qwen2vlModel   = qLoaded[0];
+        qwen2vlProc    = qLoaded[1];
+        loadedModelKey = key;
+        _saveSizeIfNew();
+      } else if (def.type === 'qwen3vl') {
+        if (qwen3vlModel) return;
+        if (!isGPU) throw new Error('Qwen3-VL yalnızca WebGPU ile çalışır. Tarayıcınızda WebGPU desteği bulunamadı.');
+        var q3Dtype = { embed_tokens: 'q4f16', vision_encoder: 'fp16', decoder_model_merged: 'q4f16' };
+        var q3Loaded = await Promise.all([
+          Qwen3VLForConditionalGeneration.from_pretrained(def.id, {
+            dtype: q3Dtype,
+            device: DEVICE,
+            progress_callback: cb,
+          }),
+          AutoProcessor.from_pretrained(def.id),
+        ]);
+        qwen3vlModel   = q3Loaded[0];
+        qwen3vlProc    = q3Loaded[1];
+        loadedModelKey = key;
+        _saveSizeIfNew();
+      } else {
+        if (genericPipe && loadedModelKey === key) return;
+        genericPipe    = await pipeline('image-to-text', def.id, {
+          device: DEVICE,
+          progress_callback: cb,
+        });
+        loadedModelKey = key;
+        _saveSizeIfNew();
+      }
+    }
+
+    // ─── Florence-2 inference ─────────────────────────────────────────────────
+    async function runFlorence2(dataUrl) {
+      if (!florenceModel) {
+        progressLabel.textContent = isCachedModel('florence2') ? 'Florence-2 önbellekten yükleniyor…' : 'Florence-2 indiriliyor…';
+        await loadModel('florence2');
+      }
+      progressBar.style.width = '85%';
+      progressLabel.textContent = 'Florence-2 ile OCR çalışıyor…';
+
+      var image  = await RawImage.fromURL(dataUrl);
+      var task   = '<OCR>';
+      // Doğru sıra: önce image, sonra task prompt
+      var inputs = await florenceProc(image, task);
+
+      // attention_mask da dahil — eksik olunca generate içinde "undefined is not iterable" hatası
+      var generateArgs = {
+        input_ids:    inputs.input_ids,
+        pixel_values: inputs.pixel_values,
+        max_new_tokens: 128,
+        num_beams: 3,
+        early_stopping: true,
+      };
+      if (inputs.attention_mask) generateArgs.attention_mask = inputs.attention_mask;
+
+      var ids = await florenceModel.generate(generateArgs);
+
+      var decoded = florenceProc.batch_decode(ids, { skip_special_tokens: false })[0];
+      var result  = florenceProc.post_process_generation(decoded, task, image.size);
+      return ((result[task] || '')).trim();
+    }
+
+    // ─── SmolVLM inference ────────────────────────────────────────────────────
+    async function runSmolVLM(dataUrl) {
+      if (!genericPipe || loadedModelKey !== 'smolvlm') {
+        progressLabel.textContent = isCachedModel('smolvlm') ? 'SmolVLM önbellekten yükleniyor…' : 'SmolVLM indiriliyor…';
+        await loadModel('smolvlm');
+      }
+      progressBar.style.width = '85%';
+      progressLabel.textContent = 'SmolVLM ile tanıma…';
+
+      var vlmModel     = genericPipe.model;
+      var vlmProcessor = genericPipe.processor;
+      var image        = await RawImage.fromURL(dataUrl);
+
+      // apply_chat_template ile prompt oluştur (SmolVLM standart formatı)
+      var messages = [{
+        role: 'user',
+        content: [
+          { type: 'image' },
+          { type: 'text', text: 'What mathematical expression, equation, or numbers are written here? Reply with ONLY the math (e.g. 10+4=). No extra words.' },
+        ],
+      }];
+      var prompt = vlmProcessor.apply_chat_template(messages, { tokenize: false, add_generation_prompt: true });
+
+      // Doğru çağrı: positional — önce text, sonra images dizisi
+      var inputs = await vlmProcessor(prompt, [image], { return_tensors: 'pt' });
+
+      var inputLen = inputs.input_ids.dims[1];
+
+      var generateArgs = {
+        input_ids:            inputs.input_ids,
+        pixel_values:         inputs.pixel_values,
+        attention_mask:       inputs.attention_mask,
+        pixel_attention_mask: inputs.pixel_attention_mask,
+        max_new_tokens: 64,
+        do_sample:      false,
+      };
+      if (inputs.image_sizes) generateArgs.image_sizes = inputs.image_sizes;
+
+      progressLabel.textContent = 'SmolVLM uretiyor... (CPU ile 1-3 dk surebilir)';
+      var generated = await vlmModel.generate(generateArgs);
+
+      // .data (BigInt64Array) üzerinden JavaScript slice ile sadece yeni token'ları al
+      var allIds = Array.from(generated.data, function(x) { return Number(x); });
+      var newIds = allIds.slice(inputLen);
+      // processor.tokenizer varsa onu, yoksa processor'ı direkt kullan
+      var tok = vlmProcessor.tokenizer || vlmProcessor;
+      var decoded = tok.decode(newIds, { skip_special_tokens: true });
+      return (decoded || '').trim();
+    }
+
+    // ─── Moondream2 inference ─────────────────────────────────────────────────
+    async function runMoondream2(dataUrl) {
+      if (!moondreamModel) {
+        progressLabel.textContent = isCachedModel('moondream2') ? 'Moondream2 önbellekten yükleniyor…' : 'Moondream2 indiriliyor…';
+        await loadModel('moondream2');
+      }
+      progressBar.style.width = '85%';
+      progressLabel.textContent = 'Moondream2 ile tanıma…';
+
+      var image = await RawImage.fromURL(dataUrl);
+      var prompt = 'What mathematical expression, equation, or numbers are written here? Reply with ONLY the math. No extra words.';
+      // Transformers.js v4 requires exactly 1 <image> token per vision patch (27×27=729 for Moondream2)
+      var text = '<image>'.repeat(729) + '\n\nQuestion: ' + prompt + '\n\nAnswer:';
+
+      var text_inputs   = moondreamTokenizer(text);
+      var vision_inputs = await moondreamProc(image);
+
+      progressLabel.textContent = 'Moondream2 üretiyor…';
+      var output = await moondreamModel.generate({
+        ...text_inputs,
+        ...vision_inputs,
+        do_sample: false,
+        max_new_tokens: 64,
+      });
+
+      var inputLen = text_inputs.input_ids.dims[1];
+      var allIds   = Array.from(output.data, function(x) { return Number(x); });
+      var newIds   = allIds.slice(inputLen);
+      var decoded  = moondreamTokenizer.decode(newIds, { skip_special_tokens: true });
+      return (decoded || '').trim();
+    }
+
+    // ─── Qwen2-VL inference ────────────────────────────────────────────────────
+    async function runQwen2VL(dataUrl) {
+      if (!qwen2vlModel) {
+        progressLabel.textContent = isCachedModel('qwen2vl') ? 'Qwen2-VL önbellekten yükleniyor…' : 'Qwen2-VL indiriliyor…';
+        await loadModel('qwen2vl');
+      }
+      progressBar.style.width = '85%';
+      progressLabel.textContent = 'Qwen2-VL ile tanıma…';
+
+      var image = await RawImage.fromURL(dataUrl);
+      var conversation = [{
+        role: 'user',
+        content: [
+          { type: 'image' },
+          { type: 'text', text: 'What mathematical expression, equation, or numbers are written here? Reply with ONLY the math. No extra words.' },
+        ],
+      }];
+      var text   = qwen2vlProc.apply_chat_template(conversation, { add_generation_prompt: true });
+      var inputs = await qwen2vlProc(text, image);
+
+      progressLabel.textContent = 'Qwen2-VL üretiyor…';
+      var outputs = await qwen2vlModel.generate({
+        ...inputs,
+        max_new_tokens: 128,
+      });
+
+      var inputLen = inputs.input_ids.dims.at(-1);
+      var decoded  = qwen2vlProc.batch_decode(
+        outputs.slice(null, [inputLen, null]),
+        { skip_special_tokens: true },
+      );
+      return (decoded[0] || '').trim();
+    }
+
+    // ─── Qwen3-VL inference ──────────────────────────────────────────────────
+    async function runQwen3VL(dataUrl) {
+      if (!qwen3vlModel) {
+        progressLabel.textContent = isCachedModel('qwen3vl') ? 'Qwen3-VL önbellekten yükleniyor…' : 'Qwen3-VL indiriliyor…';
+        await loadModel('qwen3vl');
+      }
+      progressBar.style.width = '85%';
+      progressLabel.textContent = 'Qwen3-VL ile tanıma…';
+
+      var image = await RawImage.fromURL(dataUrl);
+      var conversation = [{
+        role: 'user',
+        content: [
+          { type: 'image' },
+          { type: 'text', text: 'What mathematical expression, equation, or numbers are written here? Reply with ONLY the math. No extra words.' },
+        ],
+      }];
+      var text   = qwen3vlProc.apply_chat_template(conversation, { add_generation_prompt: true });
+      var inputs = await qwen3vlProc(text, image);
+
+      progressLabel.textContent = 'Qwen3-VL üretiyor…';
+      var outputs = await qwen3vlModel.generate({
+        ...inputs,
+        max_new_tokens: 128,
+      });
+
+      var inputLen = inputs.input_ids.dims.at(-1);
+      var decoded  = qwen3vlProc.batch_decode(
+        outputs.slice(null, [inputLen, null]),
+        { skip_special_tokens: true },
+      );
+      return (decoded[0] || '').trim();
+    }
+
+    // ─── TrOCR inference ──────────────────────────────────────────────────────
+    async function runTrOCR(key, dataUrl) {
+      if (!genericPipe || loadedModelKey !== key) {
+        progressLabel.textContent = isCachedModel(key) ? MODEL_DEFS[key].label + ' önbellekten yükleniyor…' : MODEL_DEFS[key].label + ' indiriliyor…';
+        await loadModel(key);
+      }
+      progressBar.style.width = '85%';
+      progressLabel.textContent = 'TrOCR ile tanıma…';
+      var out = await genericPipe(dataUrl, { max_new_tokens: 128 });
+      return ((out && out[0] && out[0].generated_text) ? out[0].generated_text : '').trim();
+    }
+
+    // ─── VLM Serbest Sorgu ───────────────────────────────────────────────────
+    async function runVlmQuery(question, dataUrl) {
+      var def = MODEL_DEFS[loadedModelKey] || MODEL_DEFS[modelSelect.value];
+      if (!def || !VLM_CHAT_TYPES[def.type]) throw new Error('Bu model serbest sorgu desteklemiyor.');
+      var image = await RawImage.fromURL(dataUrl);
+
+      if (def.type === 'vlm') {
+        var msgs = [{ role: 'user', content: [{ type: 'image' }, { type: 'text', text: question }] }];
+        var p = genericPipe.processor.apply_chat_template(msgs, { tokenize: false, add_generation_prompt: true });
+        var inp = await genericPipe.processor(p, [image], { return_tensors: 'pt' });
+        var inLen = inp.input_ids.dims[1];
+        var gen = await genericPipe.model.generate({
+          input_ids: inp.input_ids, pixel_values: inp.pixel_values,
+          attention_mask: inp.attention_mask, pixel_attention_mask: inp.pixel_attention_mask,
+          max_new_tokens: 256, do_sample: false,
+        });
+        var tok = genericPipe.processor.tokenizer || genericPipe.processor;
+        return tok.decode(Array.from(gen.data, Number).slice(inLen), { skip_special_tokens: true }).trim();
+
+      } else if (def.type === 'moondream') {
+        var mdText = '<image>'.repeat(729) + '\n\nQuestion: ' + question + '\n\nAnswer:';
+        var mdTok  = moondreamTokenizer(mdText);
+        var mdVis  = await moondreamProc(image);
+        var mdOut  = await moondreamModel.generate({ ...mdTok, ...mdVis, do_sample: false, max_new_tokens: 256 });
+        return moondreamTokenizer.decode(Array.from(mdOut.data, Number).slice(mdTok.input_ids.dims[1]), { skip_special_tokens: true }).trim();
+
+      } else if (def.type === 'qwen2vl') {
+        var q2conv = [{ role: 'user', content: [{ type: 'image' }, { type: 'text', text: question }] }];
+        var q2t = qwen2vlProc.apply_chat_template(q2conv, { add_generation_prompt: true });
+        var q2inp = await qwen2vlProc(q2t, image);
+        var q2len = q2inp.input_ids.dims.at(-1);
+        var q2out = await qwen2vlModel.generate({ ...q2inp, max_new_tokens: 256 });
+        return qwen2vlProc.batch_decode(q2out.slice(null, [q2len, null]), { skip_special_tokens: true })[0].trim();
+
+      } else if (def.type === 'qwen3vl') {
+        var q3conv = [{ role: 'user', content: [{ type: 'image' }, { type: 'text', text: question }] }];
+        var q3t = qwen3vlProc.apply_chat_template(q3conv, { add_generation_prompt: true });
+        var q3inp = await qwen3vlProc(q3t, image);
+        var q3len = q3inp.input_ids.dims.at(-1);
+        var q3out = await qwen3vlModel.generate({ ...q3inp, max_new_tokens: 256 });
+        return qwen3vlProc.batch_decode(q3out.slice(null, [q3len, null]), { skip_special_tokens: true })[0].trim();
+      }
+    }
+
+    // ─── Chat UI ─────────────────────────────────────────────────────────────
+    var _chatMessages = document.getElementById('chat-messages');
+    var _chatCol      = document.getElementById('chat-col');
+    var _chatInput    = document.getElementById('chat-input');
+    var _chatSendBtn  = document.getElementById('chat-send-btn');
+
+    function _esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function _md(s) {
+      try { return (typeof marked !== 'undefined') ? marked.parse(String(s)) : _esc(s); }
+      catch(e) { return _esc(s); }
+    }
+
+    function _appendMsg(question, answer, loading) {
+      var div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML =
+        '<div class="chat-msg-role user">Sen</div>' +
+        '<div class="chat-msg-content">' + _esc(question) + '</div>' +
+        '<div class="chat-msg-role asst" style="margin-top:5px">Model</div>' +
+        '<div class="' + (loading ? 'chat-msg-content thinking' : 'chat-md') + '" data-ans>' +
+          (loading ? 'Düşünüyor…' : _md(answer)) +
+        '</div>';
+      _chatMessages.appendChild(div);
+      _chatMessages.scrollTop = _chatMessages.scrollHeight;
+      return div;
+    }
+
+    function _updateMsg(div, answer) {
+      var el = div.querySelector('[data-ans]');
+      if (el) { el.className = 'chat-md'; el.innerHTML = _md(answer); }
+      _chatMessages.scrollTop = _chatMessages.scrollHeight;
+    }
+
+    async function _sendChat() {
+      if (_chatBusy || !currentDataUrl) return;
+      var q = _chatInput.value.trim();
+      if (!q) return;
+      _chatInput.value = '';
+      _chatBusy = true;
+      _chatInput.disabled = true;
+      _chatSendBtn.disabled = true;
+      var msgDiv = _appendMsg(q, '', true);
+      try {
+        var ans = await runVlmQuery(q, currentDataUrl);
+        _updateMsg(msgDiv, ans);
+      } catch (e) {
+        _updateMsg(msgDiv, 'Hata: ' + e.message);
+      } finally {
+        _chatBusy = false;
+        _chatInput.disabled = false;
+        _chatSendBtn.disabled = false;
+        _chatInput.focus();
+      }
+    }
+
+    _chatSendBtn.addEventListener('click', _sendChat);
+    _chatInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendChat(); }
+    });
+
+    // ─── Ana OCR Akışı ────────────────────────────────────────────────────────
+    analyzeBtn.addEventListener('click', runOCR);
+
+    async function runOCR() {
+      if (!currentFile && !currentCapturedDataUrl) return;
+
+      analyzeBtn.disabled = true;
+      progressWrap.style.display = 'flex';
+      resultContainer.style.display = 'none';
+      errorMsgEl.style.display = 'none';
+      progressBar.style.width = '0%';
+      rightEmpty.style.display = 'none';
+      _chatCol.style.display = 'none';
+      _chatMessages.innerHTML = '';
+      currentDataUrl = null;
+
+      var modelKey = modelSelect.value;
+
+      try {
+        progressLabel.textContent = 'Görsel işleniyor…';
+        progressBar.style.width = '5%';
+        var prepared = currentCropDataUrl
+          ? await prepareImageFromDataUrl(currentCropDataUrl)
+          : currentCapturedDataUrl
+            ? await prepareImageFromDataUrl(currentCapturedDataUrl)
+            : await prepareImage(currentFile);
+        currentDataUrl = prepared.dataUrl;
+
+        var def = MODEL_DEFS[modelKey];
+        var rawText = '';
+
+        if (def.type === 'florence2') {
+          rawText = await runFlorence2(prepared.dataUrl);
+        } else if (def.type === 'vlm') {
+          rawText = await runSmolVLM(prepared.dataUrl);
+        } else if (def.type === 'moondream') {
+          rawText = await runMoondream2(prepared.dataUrl);
+        } else if (def.type === 'qwen2vl') {
+          rawText = await runQwen2VL(prepared.dataUrl);
+        } else if (def.type === 'qwen3vl') {
+          rawText = await runQwen3VL(prepared.dataUrl);
+        } else {
+          rawText = await runTrOCR(modelKey, prepared.dataUrl);
+        }
+
+        _refreshBadge(); _refreshModalRow(modelKey);
+        progressBar.style.width = '100%';
+
+        if (!rawText) {
+          showError('Model metin üretemedi. Farklı bir model veya daha net görsel deneyin.');
+          return;
+        }
+
+        var cleaned = extractMath(rawText);
+        var latex   = cleaned ? toLatex(cleaned) : rawText;
+        currentLatex = latex;
+
+        rawTextEl.textContent     = rawText;
+        latexSourceEl.textContent = cleaned ? ('$' + latex + '$') : '(matematik karakteri bulunamadı)';
+
+        latexRenderedEl.innerHTML = '';
+        if (cleaned) {
+          try { katex.render(latex, latexRenderedEl, { throwOnError: false, displayMode: true }); }
+          catch (e) { latexRenderedEl.textContent = '$' + latex + '$'; }
+        } else {
+          latexRenderedEl.textContent = rawText;
+        }
+
+        resultContainer.style.display = 'flex';
+        progressWrap.style.display    = 'none';
+
+        // VLM modeller için ayarlardaki prompt ile otomatik ikinci sorgu
+        if (VLM_CHAT_TYPES[def.type]) {
+          _chatCol.style.display = 'flex';
+          _chatBusy = true;
+          _chatInput.disabled = true;
+          _chatSendBtn.disabled = true;
+          var autoQ = getVlmPrompt();
+          var autoDiv = _appendMsg(autoQ, '', true);
+          try {
+            var autoAns = await runVlmQuery(autoQ, prepared.dataUrl);
+            _updateMsg(autoDiv, autoAns);
+          } catch (e2) {
+            _updateMsg(autoDiv, 'Hata: ' + e2.message);
+          } finally {
+            _chatBusy = false;
+            _chatInput.disabled = false;
+            _chatSendBtn.disabled = false;
+          }
+        }
+
+      } catch (err) {
+        _refreshModalRow(modelKey);
+        showError('Hata: ' + err.message);
+      } finally {
+        analyzeBtn.disabled = false;
+      }
+    }
+
+    function showError(msg) {
+      errorMsgEl.textContent    = msg;
+      errorMsgEl.style.display  = 'block';
+      progressWrap.style.display = 'none';
+    }
+
+    copyBtn.addEventListener('click', function() {
+      if (!currentLatex) return;
+      navigator.clipboard.writeText('$' + currentLatex + '$').then(function() {
+        var orig = copyBtn.textContent;
+        copyBtn.textContent = 'Kopyalandı!';
+        setTimeout(function() { copyBtn.textContent = orig; }, 1500);
+      });
+    });
+
+    // ─── Sayfa açılışında per-model otomatik yükleme ─────────────────────────
+    (function() {
+      var _candidates = getCachedModels().filter(function(k) {
+        return MODEL_DEFS[k] && !isModelLoaded(k) && isAutoLoadEnabled(k);
+      });
+      if (_candidates.length === 0) return;
+      (async function() {
+        await _gpuReady;
+        // GPU durumu netleştikten sonra WebGPU zorunlu modelleri filtrele
+        var _autoLoadList = _candidates.filter(function(k) {
+          if (MODEL_DEFS[k].type === 'qwen3vl' && DEVICE !== 'webgpu') {
+            _modelStates[k] = 'error';
+            _modelErrors[k] = 'WebGPU bu tarayıcıda desteklenmiyor';
+            _refreshModalRow(k);
+            return false;
+          }
+          return true;
+        });
+        for (var _ak of _autoLoadList) {
+          setModelState(_ak, 'loading');
+          try {
+            var _akKey = _ak;
+            var _akCached = isCachedModel(_ak);
+            await loadModel(_ak, function(p) {
+              var row = document.getElementById('modal-row-' + _akKey);
+              if (!row) return;
+              var badge = row.querySelector('.modal-status');
+              if (!badge) return;
+              var fname = (p.file || '').split('/').pop();
+              var prefix = _akCached ? 'Önbellekten: ' : 'İndiriliyor: ';
+              if (p.status === 'initiate') {
+                badge.textContent = prefix + (fname || '…');
+              } else if (p.status === 'downloading' || p.status === 'progress') {
+                var pct = p.total ? Math.round((p.loaded / p.total) * 100) : 0;
+                badge.textContent = prefix + (fname ? fname + ' ' : '') + pct + '%';
+              } else if (p.status === 'done') {
+                badge.textContent = (fname ? fname + ' ✓' : 'Tamam');
+              }
+            });
+            setModelState(_ak, 'loaded');
+          } catch (_e) {
+            _modelErrors[_ak] = _e.message || 'Bilinmeyen hata';
+            setModelState(_ak, 'error');
+          }
+        }
+      })();
+    })();
+
+  </script>
+  <!-- Models Modal -->
+  <div class="modal-overlay" id="models-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Model Yöneticisi</h2>
+        <button class="modal-close" id="modal-close-btn" title="Kapat">✕</button>
+      </div>
+      <p class="modal-hint">Modeller tarayıcı önbelleğine kaydedilir. "Açılışta yükle" ile her model için RAM'e otomatik yükleme ayarlanabilir.</p>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Crop Modal -->
+  <div class="modal-overlay" id="crop-modal" style="display:none">
+    <div class="crop-modal-inner">
+      <div class="crop-modal-header">
+        <span class="crop-modal-title">✂ Görsel Kırp</span>
+        <button class="crop-cancel-btn" id="crop-cancel-btn">İptal</button>
+        <button class="crop-ok-btn" id="crop-ok-btn">Tamam</button>
+      </div>
+      <div class="crop-modal-hint">Kırpmak istediğiniz alanı sürükleyerek seçin</div>
+      <div class="crop-canvas-wrap">
+        <canvas id="crop-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-modal" style="display:none">
+    <div class="modal" style="width:560px">
+      <div class="modal-header">
+        <h2>⚙ Ayarlar</h2>
+        <button class="modal-close" id="settings-close-btn" title="Kapat">✕</button>
+      </div>
+      <div class="modal-body" style="padding:0">
+        <div class="settings-section">
+          <span class="settings-label">VLM Prompt</span>
+          <div class="prompt-model-tags">
+            <span class="prompt-tag">Qwen2-VL</span>
+            <span class="prompt-tag">Qwen3-VL</span>
+            <span class="prompt-tag">SmolVLM</span>
+            <span class="prompt-tag">Moondream2</span>
+          </div>
+          <p class="settings-desc">Görsel anlama modellerine gönderilecek soru. Modelin cevabı "Tanınan Ham Metin" alanında görünür.</p>
+          <textarea class="settings-textarea" id="prompt-textarea" spellcheck="false"></textarea>
+          <div class="settings-actions">
+            <button class="settings-reset-btn" id="prompt-reset-btn">Varsayılana sıfırla</button>
+            <span class="settings-saved" id="prompt-saved-indicator">Kaydedildi ✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
