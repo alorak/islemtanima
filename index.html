@@ -7,6 +7,13 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <script>
+    try {
+      if (localStorage.getItem('ai01_theme') === 'light') {
+        document.documentElement.classList.add('light-theme');
+      }
+    } catch (e) {}
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -23,7 +30,7 @@
     header h1 { font-size: 1.15rem; font-weight: 700; color: #38bdf8; }
     .header-spacer { flex: 1; }
     .header-right { display: flex; align-items: center; gap: 10px; }
-    #models-btn, #settings-btn {
+    #models-btn, #settings-btn, #theme-btn {
       display: flex; align-items: center; gap: 8px;
       background: #0f2030; border: 1px solid #1e3a5f;
       color: #7dd3fc; border-radius: 8px;
@@ -31,7 +38,7 @@
       cursor: pointer; transition: background .2s, border-color .2s;
       white-space: nowrap; flex-shrink: 0;
     }
-    #models-btn:hover, #settings-btn:hover { background: #162d45; border-color: #38bdf8; }
+    #models-btn:hover, #settings-btn:hover, #theme-btn:hover { background: #162d45; border-color: #38bdf8; }
     /* Settings modal */
     .settings-section { padding: 18px 20px; border-bottom: 1px solid #0f1820; }
     .settings-section:last-child { border-bottom: none; }
@@ -96,7 +103,7 @@
     .modal-row-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
     .modal-row-name { font-size: .88rem; font-weight: 600; color: #e2e8f0; }
     .modal-row-meta { font-size: .71rem; color: #475569; }
-    .modal-row-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: nowrap; }
+    .modal-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
     .modal-status {
       font-size: .7rem; font-weight: 700; padding: 3px 9px;
       border-radius: 100px; white-space: nowrap;
@@ -107,6 +114,7 @@
     .modal-status.loading  { background: #451a03; color: #fbbf24; border: 1px solid #78350f; animation: blink 1s infinite; }
     .modal-status.error    { background: #1c1010; color: #fca5a5; border: 1px solid #7f1d1d; }
     .modal-status.cached   { background: #1e3a5f; color: #7dd3fc; border: 1px solid #0369a1; }
+    .modal-status.partial  { background: #422006; color: #fbbf24; border: 1px solid #92400e; }
     .modal-load-btn {
       padding: 6px 14px; background: #0f2030; border: 1px solid #1e3a5f;
       color: #7dd3fc; border-radius: 7px; font-size: .8rem; font-weight: 600;
@@ -115,6 +123,14 @@
     }
     .modal-load-btn:hover:not(:disabled) { background: #162d45; border-color: #38bdf8; }
     .modal-load-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .modal-delete-btn {
+      padding: 6px 10px; background: #241012; border: 1px solid #7f1d1d;
+      color: #fca5a5; border-radius: 7px; font-size: .78rem; font-weight: 600;
+      cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap;
+    }
+    .modal-delete-btn:hover:not(:disabled) { background: #3f1518; border-color: #ef4444; }
+    .modal-delete-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .model-storage-summary { display: inline-block; margin-left: 6px; color: #64748b; }
     .gpu-badge {
       font-size: .68rem; font-weight: 700; padding: 3px 9px;
       border-radius: 100px; letter-spacing: .05em; flex-shrink: 0;
@@ -289,6 +305,86 @@
     #right-empty { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; color: #1e2d3d; text-align: center; }
     #right-empty svg { width: 52px; height: 52px; }
     #right-empty p { font-size: .82rem; color: #334155; }
+
+    /* Light theme */
+    .light-theme body { background: #f8fafc; color: #0f172a; }
+    .light-theme header { background: #ffffff; border-bottom-color: #cbd5e1; }
+    .light-theme .left-panel { background: #f8fafc; border-right-color: #cbd5e1; }
+    .light-theme .right-panel { background: #f1f5f9; }
+    .light-theme .section-title,
+    .light-theme .model-row label,
+    .light-theme .settings-label,
+    .light-theme .modal-row-meta,
+    .light-theme .modal-row-autoload-label,
+    .light-theme .result-block label,
+    .light-theme .chat-label,
+    .light-theme .chat-msg-role.asst,
+    .light-theme .crop-modal-hint,
+    .light-theme .preview-label,
+    .light-theme #right-empty p { color: #64748b; }
+    .light-theme #models-btn,
+    .light-theme #settings-btn,
+    .light-theme #theme-btn,
+    .light-theme #webcam-capture-btn {
+      background: #eff6ff; border-color: #bfdbfe; color: #0369a1;
+    }
+    .light-theme #models-btn:hover,
+    .light-theme #settings-btn:hover,
+    .light-theme #theme-btn:hover,
+    .light-theme #webcam-capture-btn:hover { background: #dbeafe; border-color: #38bdf8; }
+    .light-theme .models-badge,
+    .light-theme .gpu-badge.cpu,
+    .light-theme .settings-reset-btn,
+    .light-theme .crop-cancel-btn,
+    .light-theme .copy-btn,
+    .light-theme #webcam-retry-btn { background: #e2e8f0; color: #475569; border-color: #cbd5e1; }
+    .light-theme .modal,
+    .light-theme .crop-modal-inner,
+    .light-theme .result-block { background: #ffffff; border-color: #cbd5e1; }
+    .light-theme .modal-header,
+    .light-theme .modal-row,
+    .light-theme .settings-section,
+    .light-theme .chat-label,
+    .light-theme .chat-input-row { border-color: #e2e8f0; }
+    .light-theme .modal-header h2,
+    .light-theme .modal-row-name,
+    .light-theme .crop-modal-title,
+    .light-theme .chat-msg-content,
+    .light-theme .chat-md,
+    .light-theme .chat-md strong,
+    .light-theme #latex-rendered,
+    .light-theme #raw-text { color: #0f172a !important; }
+    .light-theme #latex-source { color: #15803d !important; }
+    .light-theme .settings-textarea,
+    .light-theme .chat-input,
+    .light-theme .model-row select {
+      background: #ffffff; border-color: #cbd5e1; color: #0f172a;
+    }
+    .light-theme .upload-area { border-color: #cbd5e1; background: #ffffff; }
+    .light-theme .upload-area:hover,
+    .light-theme .upload-area.drag-over { background: #eff6ff; border-color: #0ea5e9; }
+    .light-theme .upload-area p,
+    .light-theme #progress-label { color: #475569; }
+    .light-theme .preview-box { border-color: #cbd5e1; }
+    .light-theme .preview-box img,
+    .light-theme #cropped-img,
+    .light-theme #webcam-video,
+    .light-theme .crop-canvas-wrap { background: #ffffff; }
+    .light-theme .preview-label,
+    .light-theme .crop-preview-label { background: #f8fafc; }
+    .light-theme .mode-tabs { border-color: #cbd5e1; }
+    .light-theme .mode-tab { background: #ffffff; color: #64748b; }
+    .light-theme .mode-tab.active { background: #e0f2fe; color: #0369a1; }
+    .light-theme .mode-tab:hover:not(.active) { background: #f1f5f9; color: #334155; }
+    .light-theme .bar-outer { background: #e2e8f0; }
+    .light-theme .chat-md code,
+    .light-theme .chat-md pre { background: #f1f5f9; }
+    .light-theme .chat-md h1,
+    .light-theme .chat-md h2,
+    .light-theme .chat-md h3,
+    .light-theme .chat-md h4 { color: #0369a1; }
+    .light-theme .modal-close:hover { color: #0f172a; background: #e2e8f0; }
+    .light-theme #right-empty { color: #cbd5e1; }
   </style>
 </head>
 <body>
@@ -298,6 +394,7 @@
     <div class="header-spacer"></div>
     <div class="header-right">
       <span id="gpu-badge" class="gpu-badge cpu">CPU</span>
+      <button id="theme-btn" title="Açık/koyu tema" aria-label="Açık/koyu tema">☀ Açık</button>
       <button id="models-btn" title="Model yöneticisi">
         ⊞ Modeller <span class="models-badge" id="models-loaded-badge">0/6</span>
       </button>
@@ -423,19 +520,12 @@
       Qwen2VLForConditionalGeneration,
       Qwen3VLForConditionalGeneration,
       RawImage
-    } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4';
+    } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0';
 
     env.allowRemoteModels = true;
     env.useBrowserCache   = true;
 
-    // Service Worker — HuggingFace model dosyalarını kalıcı önbellekle
-    var _swReady = false;
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(function() { _swReady = true; })
-        .catch(function() {});
-    }
-
+    // Transformers.js browser cache'i Cache Storage kullanır; ayrı bir service worker gerekmez.
     // ─── WebGPU algılama ─────────────────────────────────────────────────────
     var DEVICE = 'wasm';
     var _gpuReady = (async function detectGPU() {
@@ -482,6 +572,7 @@
     const modalCloseBtn      = document.getElementById('modal-close-btn');
     const rightEmpty         = document.getElementById('right-empty');
     const settingsBtn        = document.getElementById('settings-btn');
+    const themeBtn           = document.getElementById('theme-btn');
     const settingsModal      = document.getElementById('settings-modal');
     const settingsCloseBtn   = document.getElementById('settings-close-btn');
     const promptTextarea     = document.getElementById('prompt-textarea');
@@ -497,6 +588,7 @@
     let _cropSourceUrl          = null;
     let _inputMode              = 'file';
     let _webcamStream           = null;
+    let _inputObjectUrl         = null;
     let _chatBusy               = false;
     let loadedModelKey   = '';
     let florenceModel    = null;
@@ -551,23 +643,74 @@
       setTimeout(function() { promptSavedInd.style.opacity = '0'; }, 1800);
     });
 
-    // ─── Önbellek takibi ve per-model otomatik yükleme (localStorage) ──────────
+    // ─── Tema ────────────────────────────────────────────────────────────────
+    var _THEME_KEY = 'ai01_theme';
+
+    function applyTheme(theme) {
+      var light = theme === 'light';
+      document.documentElement.classList.toggle('light-theme', light);
+      themeBtn.textContent = light ? '☾ Koyu' : '☀ Açık';
+      themeBtn.title = light ? 'Koyu moda geç' : 'Açık moda geç';
+    }
+
+    function getTheme() {
+      try { return localStorage.getItem(_THEME_KEY) === 'light' ? 'light' : 'dark'; }
+      catch (e) { return 'dark'; }
+    }
+
+    applyTheme(getTheme());
+
+    themeBtn.addEventListener('click', function() {
+      var next = document.documentElement.classList.contains('light-theme') ? 'dark' : 'light';
+      try { localStorage.setItem(_THEME_KEY, next); } catch (e) {}
+      applyTheme(next);
+    });
+
+    // ─── Önbellek takibi ve per-model otomatik yükleme (localStorage + Cache API) ─
     var _CACHED_KEY   = 'ai01_cached_models';
     var _AUTOLOAD_KEY = 'ai01_autoload_models';
     var _SIZE_KEY     = 'ai01_model_sizes';
+    var _cachePresence = {};
+
+    function _readList(key) {
+      var v = localStorage.getItem(key);
+      if (!v) return [];
+      var seen = {};
+      return v.split(',').filter(function(k) {
+        if (!k || !MODEL_DEFS[k] || seen[k]) return false;
+        seen[k] = true;
+        return true;
+      });
+    }
+
+    function _writeList(key, list) {
+      if (list.length) localStorage.setItem(key, list.join(','));
+      else localStorage.removeItem(key);
+    }
 
     function getModelSizes() {
       try { return JSON.parse(localStorage.getItem(_SIZE_KEY) || '{}'); } catch(e) { return {}; }
     }
+
     function saveModelSize(key, bytes) {
       if (!bytes) return;
       var sizes = getModelSizes();
       sizes[key] = bytes;
       localStorage.setItem(_SIZE_KEY, JSON.stringify(sizes));
     }
+
+    function removeModelSize(key) {
+      var sizes = getModelSizes();
+      if (!(key in sizes)) return;
+      delete sizes[key];
+      if (Object.keys(sizes).length) localStorage.setItem(_SIZE_KEY, JSON.stringify(sizes));
+      else localStorage.removeItem(_SIZE_KEY);
+    }
+
     function getModelSize(key) {
       return getModelSizes()[key] || 0;
     }
+
     function formatModelSize(bytes) {
       if (!bytes) return '';
       if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
@@ -576,36 +719,98 @@
     }
 
     function getCachedModels() {
-      var v = localStorage.getItem(_CACHED_KEY);
-      return v ? v.split(',').filter(Boolean) : [];
+      return _readList(_CACHED_KEY);
     }
+
     function isCachedModel(key) {
       return getCachedModels().indexOf(key) !== -1;
     }
+
     function markModelCached(key) {
       var list = getCachedModels();
       if (list.indexOf(key) === -1) {
         list.push(key);
-        localStorage.setItem(_CACHED_KEY, list.join(','));
+        _writeList(_CACHED_KEY, list);
       }
+      _cachePresence[key] = true;
     }
+
+    function unmarkModelCached(key) {
+      _writeList(_CACHED_KEY, getCachedModels().filter(function(k) { return k !== key; }));
+    }
+
     function getAutoLoadModels() {
-      var v = localStorage.getItem(_AUTOLOAD_KEY);
-      return v ? v.split(',').filter(Boolean) : [];
+      return _readList(_AUTOLOAD_KEY);
     }
+
     function isAutoLoadEnabled(key) {
       return getAutoLoadModels().indexOf(key) !== -1;
     }
+
     function setAutoLoad(key, enabled) {
-      var list = getAutoLoadModels();
-      var idx  = list.indexOf(key);
-      if (enabled && idx === -1) {
-        list.push(key);
-        localStorage.setItem(_AUTOLOAD_KEY, list.join(','));
-      } else if (!enabled && idx !== -1) {
-        list.splice(idx, 1);
-        localStorage.setItem(_AUTOLOAD_KEY, list.join(','));
+      var list = getAutoLoadModels().filter(function(k) { return k !== key; });
+      if (enabled && MODEL_DEFS[key]) list.push(key);
+      _writeList(_AUTOLOAD_KEY, list);
+    }
+
+    function _requestBelongsToModel(request, key) {
+      var def = MODEL_DEFS[key];
+      if (!def || !request || !request.url) return false;
+      var url = request.url;
+      try { url = decodeURIComponent(url); } catch (e) {}
+      return url.indexOf('/' + def.id + '/resolve/') !== -1 ||
+             url.indexOf('/' + def.id + '/') !== -1;
+    }
+
+    async function refreshBrowserCacheState() {
+      if (!('caches' in window)) return;
+      try {
+        var cache = await caches.open(env.cacheKey || 'transformers-cache');
+        var requests = await cache.keys();
+
+        Object.keys(MODEL_DEFS).forEach(function(key) {
+          var count = requests.filter(function(req) { return _requestBelongsToModel(req, key); }).length;
+          if (isCachedModel(key)) {
+            if (count > 0) {
+              _cachePresence[key] = true;
+            } else {
+              _cachePresence[key] = false;
+              unmarkModelCached(key);
+              removeModelSize(key);
+              setAutoLoad(key, false);
+            }
+          } else {
+            _cachePresence[key] = count > 0 ? 'partial' : false;
+          }
+          _refreshModalRow(key);
+        });
+      } catch (e) {
+        // Cache API erişilemezse localStorage işaretçileriyle çalışmaya devam et.
       }
+    }
+
+    async function updateStorageSummary() {
+      var el = document.getElementById('storage-summary');
+      if (!el || !navigator.storage || !navigator.storage.estimate) return;
+      try {
+        var estimate = await navigator.storage.estimate();
+        var usage = estimate.usage || 0;
+        var quota = estimate.quota || 0;
+        el.textContent = quota
+          ? 'Depolama: ' + formatModelSize(usage) + ' / ' + formatModelSize(quota)
+          : 'Depolama: ' + formatModelSize(usage);
+      } catch (e) {}
+    }
+
+    var _persistRequested = false;
+    async function ensurePersistentStorage() {
+      if (_persistRequested) return;
+      _persistRequested = true;
+      try {
+        if (navigator.storage && navigator.storage.persist) {
+          await navigator.storage.persist();
+        }
+      } catch (e) {}
     }
 
     // ─── Model state & modal ──────────────────────────────────────────────────
@@ -623,7 +828,8 @@
     function getModelState(key) {
       if (isModelLoaded(key)) return 'loaded';
       if (_modelStates[key] === 'loading' || _modelStates[key] === 'error') return _modelStates[key];
-      if (isCachedModel(key)) return 'cached';
+      if (isCachedModel(key) && _cachePresence[key] !== false) return 'cached';
+      if (_cachePresence[key] === 'partial') return 'partial';
       return 'unloaded';
     }
 
@@ -648,9 +854,10 @@
       var row = document.getElementById('modal-row-' + key);
       if (!row) return;
       var state  = getModelState(key);
-      var labels = { loaded: 'Yüklü', loading: 'Yükleniyor…', error: 'Hata', unloaded: 'Yüklü Değil', cached: 'Önbellekte' };
+      var labels = { loaded: 'RAM’de', loading: 'Yükleniyor…', error: 'Hata', unloaded: 'Yüklü Değil', cached: 'Önbellekte', partial: 'Kısmi Önbellek' };
       var badge  = row.querySelector('.modal-status');
       var btn    = row.querySelector('.modal-load-btn');
+      var delBtn = row.querySelector('.modal-delete-btn');
       var atog   = row.querySelector('.autoload-toggle');
       if (badge) {
         badge.className = 'modal-status ' + state;
@@ -658,13 +865,25 @@
         badge.textContent = labels[state] + (szLabel ? ' · ' + szLabel : '');
         badge.title = state === 'error' && _modelErrors[key] ? _modelErrors[key] : '';
       }
-      if (btn)   { btn.disabled = (state === 'loading' || state === 'loaded'); btn.textContent = state === 'loaded' ? '✓ Yüklü' : 'İndir'; }
+      if (btn) {
+        btn.disabled = (state === 'loading' || state === 'loaded');
+        btn.textContent = state === 'loaded' ? '✓ RAM’de' :
+                          state === 'cached' ? 'Kullan' :
+                          state === 'partial' ? 'Tamamla' :
+                          state === 'error' ? 'Tekrar dene' : 'İndir';
+      }
+      if (delBtn) {
+        var hasStoredData = state === 'loaded' || state === 'cached' || state === 'partial' ||
+                            isCachedModel(key) || _cachePresence[key] === 'partial';
+        delBtn.disabled = state === 'loading';
+        delBtn.style.display = hasStoredData ? '' : 'none';
+      }
       if (atog)  { atog.checked = isAutoLoadEnabled(atog.dataset.key); }
     }
 
     function _renderModal() {
       modalBody.innerHTML = '';
-      var labels = { loaded: 'Yüklü', loading: 'Yükleniyor…', error: 'Hata', unloaded: 'Yüklü Değil', cached: 'Önbellekte' };
+      var labels = { loaded: 'RAM’de', loading: 'Yükleniyor…', error: 'Hata', unloaded: 'Yüklü Değil', cached: 'Önbellekte', partial: 'Kısmi Önbellek' };
       for (var k in MODEL_DEFS) {
         var def   = MODEL_DEFS[k];
         var state = getModelState(k);
@@ -686,8 +905,11 @@
             '</div>' +
             '<span class="modal-status ' + state + '">' + labels[state] + (((state === 'loaded' || state === 'cached') && formatModelSize(getModelSize(k))) ? ' · ' + formatModelSize(getModelSize(k)) : '') + '</span>' +
             '<button class="modal-load-btn" data-key="' + k + '"' + (state === 'loading' || state === 'loaded' ? ' disabled' : '') + '>' +
-              (state === 'loaded' ? '✓ Yüklü' : 'İndir') +
+              (state === 'loaded' ? '✓ RAM’de' : state === 'cached' ? 'Kullan' : state === 'partial' ? 'Tamamla' : state === 'error' ? 'Tekrar dene' : 'İndir') +
             '</button>' +
+            '<button class="modal-delete-btn" data-key="' + k + '"' +
+              ((state === 'loaded' || state === 'cached' || state === 'partial' || isCachedModel(k) || _cachePresence[k] === 'partial') ? '' : ' style="display:none"') +
+              (state === 'loading' ? ' disabled' : '') + '>Sil</button>' +
           '</div>';
         modalBody.appendChild(row);
       }
@@ -696,6 +918,8 @@
     modelsBtn.addEventListener('click', function() {
       _renderModal();
       modelsModal.style.display = 'flex';
+      refreshBrowserCacheState().then(function() { _renderModal(); });
+      updateStorageSummary();
     });
 
     modalCloseBtn.addEventListener('click', function() {
@@ -712,12 +936,91 @@
       setAutoLoad(tog.dataset.key, tog.checked);
     });
 
+    async function _disposeGenericPipe() {
+      if (!genericPipe) { loadedModelKey = ''; return; }
+      try {
+        if (typeof genericPipe.dispose === 'function') await genericPipe.dispose();
+        else if (genericPipe.model && typeof genericPipe.model.dispose === 'function') await genericPipe.model.dispose();
+      } catch (e) {}
+      genericPipe = null;
+      loadedModelKey = '';
+    }
+
+    async function unloadModel(key) {
+      try {
+        if (key === 'florence2' && florenceModel) {
+          if (typeof florenceModel.dispose === 'function') await florenceModel.dispose();
+          florenceModel = null; florenceProc = null;
+        } else if (key === 'moondream2' && moondreamModel) {
+          if (typeof moondreamModel.dispose === 'function') await moondreamModel.dispose();
+          moondreamModel = null; moondreamProc = null; moondreamTokenizer = null;
+        } else if (key === 'qwen2vl' && qwen2vlModel) {
+          if (typeof qwen2vlModel.dispose === 'function') await qwen2vlModel.dispose();
+          qwen2vlModel = null; qwen2vlProc = null;
+        } else if (key === 'qwen3vl' && qwen3vlModel) {
+          if (typeof qwen3vlModel.dispose === 'function') await qwen3vlModel.dispose();
+          qwen3vlModel = null; qwen3vlProc = null;
+        } else if (loadedModelKey === key) {
+          await _disposeGenericPipe();
+        }
+      } finally {
+        delete _modelStates[key];
+        delete _modelErrors[key];
+        _refreshBadge();
+      }
+    }
+
+    async function clearModelCache(key) {
+      await unloadModel(key);
+
+      if ('caches' in window) {
+        try {
+          var cache = await caches.open(env.cacheKey || 'transformers-cache');
+          var requests = await cache.keys();
+          var matching = requests.filter(function(req) { return _requestBelongsToModel(req, key); });
+          var deleted = await Promise.all(matching.map(function(req) { return cache.delete(req); }));
+          if (deleted.some(function(ok) { return !ok; })) {
+            throw new Error('Bazı model dosyaları tarayıcı önbelleğinden silinemedi.');
+          }
+        } catch (e) {
+          throw new Error('Model önbelleği silinemedi: ' + (e.message || e));
+        }
+      }
+
+      unmarkModelCached(key);
+      removeModelSize(key);
+      setAutoLoad(key, false);
+      _cachePresence[key] = false;
+      _refreshModalRow(key);
+      _refreshBadge();
+      await updateStorageSummary();
+    }
+
     modalBody.addEventListener('click', async function(e) {
+      var delBtn = e.target.closest('.modal-delete-btn');
+      if (delBtn && !delBtn.disabled) {
+        var delKey = delBtn.dataset.key;
+        var delDef = MODEL_DEFS[delKey];
+        if (!delDef) return;
+        if (!window.confirm(delDef.label + ' modelini RAM’den ve tarayıcı önbelleğinden silmek istiyor musunuz?')) return;
+        delBtn.disabled = true;
+        delBtn.textContent = 'Siliniyor…';
+        try {
+          await clearModelCache(delKey);
+        } catch (err) {
+          _modelErrors[delKey] = err.message || 'Model silinemedi';
+          _modelStates[delKey] = 'error';
+        }
+        _renderModal();
+        return;
+      }
+
       var btn = e.target.closest('.modal-load-btn');
       if (!btn || btn.disabled) return;
       var key = btn.dataset.key;
       var _isCached = isCachedModel(key);
       setModelState(key, 'loading');
+      await ensurePersistentStorage();
       try {
         await loadModel(key, function(p) {
           var row = document.getElementById('modal-row-' + key);
@@ -737,6 +1040,7 @@
       } catch (err) {
         _modelErrors[key] = err.message || 'Bilinmeyen hata';
         setModelState(key, 'error');
+        await refreshBrowserCacheState();
       }
     });
 
@@ -907,7 +1211,15 @@
       }
     }
 
+    function _releaseInputObjectUrl() {
+      if (_inputObjectUrl) {
+        URL.revokeObjectURL(_inputObjectUrl);
+        _inputObjectUrl = null;
+      }
+    }
+
     function _resetInputState() {
+      _releaseInputObjectUrl();
       currentFile = null;
       currentCapturedDataUrl = null;
       currentCropDataUrl = null;
@@ -1001,7 +1313,9 @@
       currentFile = file;
       currentCapturedDataUrl = null;
       currentCropDataUrl = null;
-      _cropSourceUrl = URL.createObjectURL(file);
+      _releaseInputObjectUrl();
+      _inputObjectUrl = URL.createObjectURL(file);
+      _cropSourceUrl = _inputObjectUrl;
       croppedContainer.style.display = 'none';
       croppedImg.src = '';
       previewImg.src = _cropSourceUrl;
@@ -1130,7 +1444,9 @@
     function prepareImage(file) {
       return new Promise(function(resolve, reject) {
         var img = new Image();
+        var objectUrl = URL.createObjectURL(file);
         img.onload = function() {
+          URL.revokeObjectURL(objectUrl);
           var MAX = 1920;
           var scale = img.width > MAX || img.height > MAX
             ? Math.min(MAX / img.width, MAX / img.height)
@@ -1143,8 +1459,11 @@
           var url = c.toDataURL('image/jpeg', 0.92);
           resolve({ previewUrl: url, dataUrl: url });
         };
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
+        img.onerror = function(err) {
+          URL.revokeObjectURL(objectUrl);
+          reject(err);
+        };
+        img.src = objectUrl;
       });
     }
 
@@ -1193,12 +1512,22 @@
       if (!def) throw new Error('Bilinmeyen model: ' + key);
 
       var _sizeAccum = 0;
+      var _doneFiles = new Set();
       var _wasCached = isCachedModel(key);
 
       var cb = function(p) {
-        if (p.status === 'done' && p.total) { _sizeAccum += p.total; }
+        if (p.status === 'done' && p.total) {
+          var doneKey = p.file || ('unknown-' + _doneFiles.size);
+          if (!_doneFiles.has(doneKey)) {
+            _doneFiles.add(doneKey);
+            _sizeAccum += p.total;
+          }
+        }
         if (progressWrap.style.display === 'flex') {
-          if (p.status === 'initiate') {
+          if (p.status === 'progress_total' && typeof p.progress === 'number') {
+            progressBar.style.width = Math.max(5, Math.min(82, p.progress * 0.82)) + '%';
+            progressLabel.textContent = (_wasCached ? 'Önbellekten hazırlanıyor: ' : 'Model indiriliyor: ') + Math.round(p.progress) + '%';
+          } else if (p.status === 'initiate') {
             var name0 = (p.file || '').split('/').pop();
             progressLabel.textContent = (_wasCached ? 'Önbellekten: ' : 'Bekleniyor: ') + (name0 || '…');
           } else if (p.status === 'downloading' || p.status === 'progress') {
@@ -1230,20 +1559,21 @@
             device: DEVICE,
             progress_callback: cb,
           }),
-          AutoProcessor.from_pretrained(def.id),
+          AutoProcessor.from_pretrained(def.id, { progress_callback: cb }),
         ]);
         florenceModel = loaded[0];
         florenceProc  = loaded[1];
         _saveSizeIfNew();
       } else if (def.type === 'vlm') {
         if (genericPipe && loadedModelKey === key) return;
+        if (genericPipe) await _disposeGenericPipe();
         var vlmLoaded = await Promise.all([
           AutoModelForVision2Seq.from_pretrained(def.id, {
             dtype: 'q4',
             device: DEVICE,
             progress_callback: cb,
           }),
-          AutoProcessor.from_pretrained(def.id),
+          AutoProcessor.from_pretrained(def.id, { progress_callback: cb }),
         ]);
         genericPipe    = { model: vlmLoaded[0], processor: vlmLoaded[1] };
         loadedModelKey = key;
@@ -1257,13 +1587,12 @@
             device: DEVICE,
             progress_callback: cb,
           }),
-          AutoProcessor.from_pretrained(def.id),
-          AutoTokenizer.from_pretrained(def.id),
+          AutoProcessor.from_pretrained(def.id, { progress_callback: cb }),
+          AutoTokenizer.from_pretrained(def.id, { progress_callback: cb }),
         ]);
         moondreamModel     = mdLoaded[0];
         moondreamProc      = mdLoaded[1];
         moondreamTokenizer = mdLoaded[2];
-        loadedModelKey     = key;
         _saveSizeIfNew();
       } else if (def.type === 'qwen2vl') {
         if (qwen2vlModel) return;
@@ -1274,11 +1603,10 @@
             device: DEVICE,
             progress_callback: cb,
           }),
-          AutoProcessor.from_pretrained(def.id),
+          AutoProcessor.from_pretrained(def.id, { progress_callback: cb }),
         ]);
         qwen2vlModel   = qLoaded[0];
         qwen2vlProc    = qLoaded[1];
-        loadedModelKey = key;
         _saveSizeIfNew();
       } else if (def.type === 'qwen3vl') {
         if (qwen3vlModel) return;
@@ -1290,14 +1618,14 @@
             device: DEVICE,
             progress_callback: cb,
           }),
-          AutoProcessor.from_pretrained(def.id),
+          AutoProcessor.from_pretrained(def.id, { progress_callback: cb }),
         ]);
         qwen3vlModel   = q3Loaded[0];
         qwen3vlProc    = q3Loaded[1];
-        loadedModelKey = key;
         _saveSizeIfNew();
       } else {
         if (genericPipe && loadedModelKey === key) return;
+        if (genericPipe) await _disposeGenericPipe();
         genericPipe    = await pipeline('image-to-text', def.id, {
           device: DEVICE,
           progress_callback: cb,
@@ -1502,7 +1830,7 @@
 
     // ─── VLM Serbest Sorgu ───────────────────────────────────────────────────
     async function runVlmQuery(question, dataUrl) {
-      var def = MODEL_DEFS[loadedModelKey] || MODEL_DEFS[modelSelect.value];
+      var def = MODEL_DEFS[modelSelect.value];
       if (!def || !VLM_CHAT_TYPES[def.type]) throw new Error('Bu model serbest sorgu desteklemiyor.');
       var image = await RawImage.fromURL(dataUrl);
 
@@ -1555,7 +1883,7 @@
     }
 
     function _md(s) {
-      try { return (typeof marked !== 'undefined') ? marked.parse(String(s)) : _esc(s); }
+      try { return (typeof marked !== 'undefined') ? marked.parse(_esc(String(s))) : _esc(s); }
       catch(e) { return _esc(s); }
     }
 
@@ -1722,13 +2050,13 @@
     });
 
     // ─── Sayfa açılışında per-model otomatik yükleme ─────────────────────────
-    (function() {
+    (async function() {
+      await refreshBrowserCacheState();
       var _candidates = getCachedModels().filter(function(k) {
         return MODEL_DEFS[k] && !isModelLoaded(k) && isAutoLoadEnabled(k);
       });
       if (_candidates.length === 0) return;
-      (async function() {
-        await _gpuReady;
+      await _gpuReady;
         // GPU durumu netleştikten sonra WebGPU zorunlu modelleri filtrele
         var _autoLoadList = _candidates.filter(function(k) {
           if (MODEL_DEFS[k].type === 'qwen3vl' && DEVICE !== 'webgpu') {
@@ -1766,7 +2094,6 @@
             setModelState(_ak, 'error');
           }
         }
-      })();
     })();
 
   </script>
@@ -1777,7 +2104,7 @@
         <h2>Model Yöneticisi</h2>
         <button class="modal-close" id="modal-close-btn" title="Kapat">✕</button>
       </div>
-      <p class="modal-hint">Modeller tarayıcı önbelleğine kaydedilir. "Açılışta yükle" ile her model için RAM'e otomatik yükleme ayarlanabilir.</p>
+      <p class="modal-hint">Modeller tarayıcı Cache Storage alanına kaydedilir. "Açılışta yükle" yalnızca doğrulanmış önbellek için çalışır; "Sil" hem RAM'i hem disk önbelleğini temizler.<span id="storage-summary" class="model-storage-summary"></span></p>
       <div class="modal-body" id="modal-body"></div>
     </div>
   </div>
