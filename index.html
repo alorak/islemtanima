@@ -103,7 +103,7 @@
     .modal-row-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
     .modal-row-name { font-size: .88rem; font-weight: 600; color: #e2e8f0; }
     .modal-row-meta { font-size: .71rem; color: #475569; }
-    .modal-row-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: nowrap; }
+    .modal-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
     .modal-status {
       font-size: .7rem; font-weight: 700; padding: 3px 9px;
       border-radius: 100px; white-space: nowrap;
@@ -873,8 +873,10 @@
                           state === 'error' ? 'Tekrar dene' : 'İndir';
       }
       if (delBtn) {
+        var hasStoredData = state === 'loaded' || state === 'cached' || state === 'partial' ||
+                            isCachedModel(key) || _cachePresence[key] === 'partial';
         delBtn.disabled = state === 'loading';
-        delBtn.style.display = (state === 'loaded' || state === 'cached' || state === 'partial') ? '' : 'none';
+        delBtn.style.display = hasStoredData ? '' : 'none';
       }
       if (atog)  { atog.checked = isAutoLoadEnabled(atog.dataset.key); }
     }
@@ -906,7 +908,7 @@
               (state === 'loaded' ? '✓ RAM’de' : state === 'cached' ? 'Kullan' : state === 'partial' ? 'Tamamla' : state === 'error' ? 'Tekrar dene' : 'İndir') +
             '</button>' +
             '<button class="modal-delete-btn" data-key="' + k + '"' +
-              ((state === 'loaded' || state === 'cached' || state === 'partial') ? '' : ' style="display:none"') +
+              ((state === 'loaded' || state === 'cached' || state === 'partial' || isCachedModel(k) || _cachePresence[k] === 'partial') ? '' : ' style="display:none"') +
               (state === 'loading' ? ' disabled' : '') + '>Sil</button>' +
           '</div>';
         modalBody.appendChild(row);
@@ -975,10 +977,14 @@
         try {
           var cache = await caches.open(env.cacheKey || 'transformers-cache');
           var requests = await cache.keys();
-          await Promise.all(requests
-            .filter(function(req) { return _requestBelongsToModel(req, key); })
-            .map(function(req) { return cache.delete(req); }));
-        } catch (e) {}
+          var matching = requests.filter(function(req) { return _requestBelongsToModel(req, key); });
+          var deleted = await Promise.all(matching.map(function(req) { return cache.delete(req); }));
+          if (deleted.some(function(ok) { return !ok; })) {
+            throw new Error('Bazı model dosyaları tarayıcı önbelleğinden silinemedi.');
+          }
+        } catch (e) {
+          throw new Error('Model önbelleği silinemedi: ' + (e.message || e));
+        }
       }
 
       unmarkModelCached(key);
@@ -999,7 +1005,12 @@
         if (!window.confirm(delDef.label + ' modelini RAM’den ve tarayıcı önbelleğinden silmek istiyor musunuz?')) return;
         delBtn.disabled = true;
         delBtn.textContent = 'Siliniyor…';
-        await clearModelCache(delKey);
+        try {
+          await clearModelCache(delKey);
+        } catch (err) {
+          _modelErrors[delKey] = err.message || 'Model silinemedi';
+          _modelStates[delKey] = 'error';
+        }
         _renderModal();
         return;
       }
